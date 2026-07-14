@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#2E7D32">
+<title>Scorekaart · Shortgolf Twente</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Archivo+Narrow:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --grass:#3FA34D; --grass-deep:#2E7D32; --grass-ink:#1c3a1e;
+    --sun:#F4D03F; --teal:#15a594; --sky:#5B8DEF;
+    --paper:#FBFCF6; --card:#ffffff; --ink:#16231a; --muted:#6b7d6e;
+    --line:#dfe6da;
+    --hio:#7E57C2; --eagle:#1565C0; --birdie:#2E7D32; --par:#15a594;
+    --bogey:#F4A100; --dbogey:#E8730C; --bad:#D64541;
+    --shadow:0 1px 2px rgba(20,40,20,.06),0 6px 18px rgba(20,40,20,.08);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Archivo',system-ui,-apple-system,sans-serif;
+    color:var(--ink);
+    background:
+      linear-gradient(180deg,#eaf3e6 0%,var(--paper) 240px,var(--paper) 100%);
+    min-height:100vh;
+    padding:0 0 calc(28px + env(safe-area-inset-bottom));
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 14px}
+
+  /* ---- Header ---- */
+  header{
+    background:linear-gradient(110deg,var(--grass-deep),var(--grass));
+    color:#fff;border-radius:0 0 22px 22px;padding:18px 0 20px;
+    box-shadow:var(--shadow);position:relative;overflow:hidden;
+    padding-top:calc(18px + env(safe-area-inset-top));
+  }
+  header::after{content:"";position:absolute;right:-30px;top:-30px;width:160px;height:160px;
+    background:radial-gradient(circle,rgba(244,208,63,.55),transparent 70%);}
+  header .wrap{position:relative;display:flex;align-items:center;gap:14px}
+  .ball{flex:0 0 auto;width:46px;height:46px;border-radius:50%;
+    background:radial-gradient(circle at 34% 30%,#fff,#dfe7d8 70%,#c7d2bf);
+    box-shadow:inset -3px -4px 6px rgba(0,0,0,.12), 0 2px 5px rgba(0,0,0,.2);
+    position:relative}
+  .ball::before,.ball::after{content:"";position:absolute;border-radius:50%;
+    background:rgba(120,140,110,.35)}
+  .ball::before{width:6px;height:6px;top:13px;left:16px;
+    box-shadow:11px 0 0 rgba(120,140,110,.35),5px 9px 0 rgba(120,140,110,.35),16px 9px 0 rgba(120,140,110,.35),11px 18px 0 rgba(120,140,110,.35)}
+  .ball::after{display:none}
+  .eyebrow{font-family:'Archivo Narrow',sans-serif;font-weight:700;letter-spacing:.22em;
+    text-transform:uppercase;font-size:11px;opacity:.85;margin:0}
+  h1{font-weight:800;font-size:26px;letter-spacing:-.5px;margin:1px 0 0;line-height:1}
+  .par-pill{margin-left:auto;text-align:right;line-height:1}
+  .par-pill b{font-size:22px;display:block;font-weight:800}
+  .par-pill span{font-family:'Archivo Narrow',sans-serif;font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;opacity:.85}
+
+  /* ---- Players ---- */
+  .players{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+  .player-row{display:flex;align-items:center;gap:8px;background:var(--card);
+    border:1px solid var(--line);border-radius:13px;padding:8px 10px;box-shadow:var(--shadow)}
+  .chip{width:14px;height:14px;border-radius:4px;flex:0 0 auto}
+  .player-row input{flex:1;min-width:0;border:none;background:transparent;font:inherit;
+    font-weight:700;font-size:16px;color:var(--ink);padding:4px 2px}
+  .player-row input:focus{outline:none}
+  .player-row input::placeholder{color:var(--muted);font-weight:600}
+  .ptot{font-family:'Archivo Narrow',sans-serif;font-weight:700;font-size:13px;
+    color:var(--muted);white-space:nowrap}
+  .pdel{border:none;background:#f1f3ee;color:var(--muted);width:30px;height:30px;
+    border-radius:9px;font-size:18px;line-height:1;cursor:pointer;flex:0 0 auto}
+  .pdel:active{background:#e6e9e2}
+  .addbtn{align-self:flex-start;border:1.5px dashed var(--grass);color:var(--grass-deep);
+    background:rgba(63,163,77,.06);font:inherit;font-weight:700;font-size:14px;
+    padding:8px 14px;border-radius:11px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+  .addbtn:active{background:rgba(63,163,77,.14)}
+
+  /* ---- Scorecard ---- */
+  .cardwrap{margin-top:16px;background:var(--card);border:1px solid var(--line);
+    border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse;width:100%;min-width:max-content}
+  thead th{font-family:'Archivo Narrow',sans-serif;font-weight:700;font-size:11px;
+    text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    padding:11px 6px;background:#f6f8f3;border-bottom:2px solid var(--line);white-space:nowrap}
+  thead th.pl{color:var(--ink);font-weight:700;max-width:120px;overflow:hidden;
+    text-overflow:ellipsis}
+  .col-hole{position:sticky;left:0;z-index:3;background:#f6f8f3;text-align:left;padding-left:12px}
+  tbody td{padding:7px 6px;text-align:center;border-bottom:1px solid #eef1ec}
+  tbody tr:last-child td{border-bottom:none}
+  .h-cell{position:sticky;left:0;z-index:2;background:var(--card);text-align:left;
+    padding-left:12px;min-width:84px}
+  .h-no{font-weight:800;font-size:17px;line-height:1}
+  .h-meta{font-family:'Archivo Narrow',sans-serif;font-size:11px;color:var(--muted);
+    margin-top:2px;white-space:nowrap}
+  .h-meta b{color:var(--grass-deep);font-weight:700}
+
+  /* stepper cell */
+  .step{display:inline-flex;align-items:center;gap:0;border-radius:11px;overflow:hidden;
+    border:1px solid var(--line);background:#fff}
+  .step button{border:none;background:#f3f5f0;width:30px;height:40px;font-size:20px;
+    line-height:1;color:var(--grass-deep);cursor:pointer;font-weight:700}
+  .step button:active{background:#e6e9e2}
+  .step .val{width:38px;height:40px;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:19px;color:var(--ink)}
+  .step .val.set{color:#fff}
+  /* score colors */
+  .sc-hio .val.set{background:var(--hio)} .sc-eagle .val.set{background:var(--eagle)}
+  .sc-birdie .val.set{background:var(--birdie)} .sc-par .val.set{background:var(--par)}
+  .sc-bogey .val.set{background:var(--bogey)} .sc-dbogey .val.set{background:var(--dbogey)}
+  .sc-bad .val.set{background:var(--bad)}
+
+  /* totals row */
+  tfoot td{padding:12px 6px;background:#f6f8f3;border-top:2px solid var(--line);text-align:center}
+  tfoot .h-cell{background:#f6f8f3}
+  .tot-label{font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:.04em}
+  .tot-num{font-weight:800;font-size:22px;line-height:1}
+  .tot-par{font-family:'Archivo Narrow',sans-serif;font-size:12px;font-weight:700;
+    margin-top:3px;display:inline-block;padding:1px 7px;border-radius:20px}
+  .tp-under{background:rgba(46,125,50,.14);color:var(--grass-deep)}
+  .tp-even{background:rgba(21,165,148,.16);color:#0c6e62}
+  .tp-over{background:rgba(244,161,0,.16);color:#9a6700}
+  .leader{box-shadow:inset 0 0 0 2px var(--sun)}
+  .crown{font-size:12px}
+
+  /* ---- Actions ---- */
+  .actions{margin-top:18px;display:flex;gap:10px}
+  .actions button{flex:1;font:inherit;font-weight:700;font-size:15px;padding:14px;
+    border-radius:13px;cursor:pointer;border:1px solid var(--line);background:var(--card);
+    color:var(--ink);box-shadow:var(--shadow)}
+  .actions button:active{transform:translateY(1px)}
+  .btn-share{background:var(--grass-deep);color:#fff;border-color:var(--grass-deep)}
+  .save-note{text-align:center;font-family:'Archivo Narrow',sans-serif;font-size:12px;
+    color:var(--muted);margin-top:14px}
+
+  .toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));
+    transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;
+    padding:11px 18px;border-radius:12px;font-weight:700;font-size:14px;opacity:0;
+    pointer-events:none;transition:.25s;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="ball" aria-hidden="true"></div>
+    <div>
+      <p class="eyebrow">Shortgolf Twente</p>
+      <h1>Scorekaart</h1>
+    </div>
+    <div class="par-pill"><b id="coursePar">27</b><span>Par · 9 holes</span></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="players" id="players"></div>
+  <button class="addbtn" id="addPlayer">+ Speler toevoegen</button>
+
+  <div class="cardwrap">
+    <div class="scroll">
+      <table id="card">
+        <thead><tr id="head"></tr></thead>
+        <tbody id="body"></tbody>
+        <tfoot><tr id="foot"></tr></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-share" id="share">Deel uitslag</button>
+    <button id="reset">Nieuwe ronde</button>
+  </div>
+  <p class="save-note">Scores worden automatisch bewaard op dit toestel.</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // --- Baandata (van de kaart) ---
+  var HOLES = [
+    {hole:1, dist:37, par:3},
+    {hole:2, dist:45, par:3},
+    {hole:3, dist:46, par:3},
+    {hole:4, dist:31, par:3},
+    {hole:5, dist:45, par:3},
+    {hole:6, dist:48, par:3},
+    {hole:7, dist:60, par:3},
+    {hole:8, dist:32, par:3},
+    {hole:9, dist:50, par:3}
+  ];
+  var COLORS = ["#3FA34D","#F4D03F","#15a594","#5B8DEF"];
+  var COURSE_PAR = HOLES.reduce(function(s,h){return s+h.par;},0);
+  var KEY = "shortgolf-twente-v1";
+
+  // --- Veilige opslag: localStorage met in-memory fallback ---
+  var mem = {};
+  var store = {
+    get:function(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k]||null; } },
+    set:function(k,v){ try{ localStorage.setItem(k,v); }catch(e){ mem[k]=v; } }
+  };
+
+  // --- State ---
+  var state = load();
+
+  function blankState(){
+    return { players:[ {name:""}, {name:""} ],
+             scores:[ {}, {} ] }; // scores[playerIndex][holeIndex] = strokes
+  }
+  function load(){
+    try{
+      var raw = store.get(KEY);
+      if(!raw) return blankState();
+      var s = JSON.parse(raw);
+      if(!s.players || !s.players.length) return blankState();
+      if(!s.scores) s.scores = s.players.map(function(){return {};});
+      return s;
+    }catch(e){ return blankState(); }
+  }
+  function save(){ store.set(KEY, JSON.stringify(state)); }
+
+  // --- Score-classificatie t.o.v. par ---
+  function scoreClass(strokes, par){
+    if(strokes==null) return "";
+    var d = strokes - par;
+    if(strokes===1) return "sc-hio";
+    if(d<=-2) return "sc-eagle";
+    if(d===-1) return "sc-birdie";
+    if(d===0) return "sc-par";
+    if(d===1) return "sc-bogey";
+    if(d===2) return "sc-dbogey";
+    return "sc-bad";
+  }
+
+  function playerTotal(pi){
+    var t=0, played=0;
+    HOLES.forEach(function(h,hi){
+      var v = state.scores[pi][hi];
+      if(v!=null){ t+=v; played+=h.par; }
+    });
+    return {strokes:t, parPlayed:played};
+  }
+
+  function formatToPar(diff){
+    if(diff>0) return "+"+diff;
+    if(diff<0) return ""+diff;
+    return "E"; // even par
+  }
+
+  // --- Render ---
+  var $players=document.getElementById("players");
+  var $head=document.getElementById("head");
+  var $body=document.getElementById("body");
+  var $foot=document.getElementById("foot");
+  document.getElementById("coursePar").textContent=COURSE_PAR;
+
+  function render(){
+    renderPlayers();
+    renderTable();
+    save();
+  }
+
+  function renderPlayers(){
+    $players.innerHTML="";
+    state.players.forEach(function(p,pi){
+      var row=document.createElement("div"); row.className="player-row";
+      var chip=document.createElement("span"); chip.className="chip";
+      chip.style.background=COLORS[pi%COLORS.length]; row.appendChild(chip);
+
+      var inp=document.createElement("input");
+      inp.type="text"; inp.value=p.name; inp.placeholder="Speler "+(pi+1);
+      inp.setAttribute("enterkeyhint","done");
+      inp.addEventListener("input",function(){ state.players[pi].name=inp.value; save();
+        // update header label without full rerender to keep focus
+        var th=document.getElementById("th-"+pi); if(th) th.textContent=labelFor(pi); });
+      row.appendChild(inp);
+
+      var tot=playerTotal(pi);
+      var tspan=document.createElement("span"); tspan.className="ptot";
+      tspan.textContent = tot.strokes>0 ? tot.strokes+" slagen" : "—";
+      row.appendChild(tspan);
+
+      if(state.players.length>1){
+        var del=document.createElement("button"); del.className="pdel"; del.textContent="×";
+        del.title="Speler verwijderen";
+        del.addEventListener("click",function(){
+          state.players.splice(pi,1); state.scores.splice(pi,1); render();
+        });
+        row.appendChild(del);
+      }
+      $players.appendChild(row);
+    });
+    document.getElementById("addPlayer").style.display =
+      state.players.length>=4 ? "none" : "inline-flex";
+  }
+
+  function labelFor(pi){
+    var n=(state.players[pi].name||"").trim();
+    return n || ("Speler "+(pi+1));
+  }
+
+  function renderTable(){
+    // header
+    $head.innerHTML="";
+    var th0=document.createElement("th"); th0.className="col-hole"; th0.textContent="Hole";
+    $head.appendChild(th0);
+    state.players.forEach(function(p,pi){
+      var th=document.createElement("th"); th.className="pl"; th.id="th-"+pi;
+      th.textContent=labelFor(pi);
+      th.style.borderTop="3px solid "+COLORS[pi%COLORS.length];
+      $head.appendChild(th);
+    });
+
+    // body
+    $body.innerHTML="";
+    HOLES.forEach(function(h,hi){
+      var tr=document.createElement("tr");
+      var hc=document.createElement("td"); hc.className="h-cell";
+      hc.innerHTML='<div class="h-no">'+h.hole+'</div>'+
+                   '<div class="h-meta">'+h.dist+' m · par <b>'+h.par+'</b></div>';
+      tr.appendChild(hc);
+
+      state.players.forEach(function(p,pi){
+        var td=document.createElement("td");
+        td.appendChild(buildStepper(pi,hi,h.par));
+        tr.appendChild(td);
+      });
+      $body.appendChild(tr);
+    });
+
+    // footer totals
+    renderFoot();
+  }
+
+  function buildStepper(pi,hi,par){
+    var v = state.scores[pi][hi];
+    var wrap=document.createElement("div");
+    wrap.className="step "+scoreClass(v,par);
+
+    var minus=document.createElement("button"); minus.textContent="−"; minus.setAttribute("aria-label","minder");
+    var val=document.createElement("div"); val.className="val"+(v!=null?" set":"");
+    val.textContent = v!=null ? v : "·";
+    var plus=document.createElement("button"); plus.textContent="+"; plus.setAttribute("aria-label","meer");
+
+    minus.addEventListener("click",function(){ change(pi,hi,-1); });
+    plus.addEventListener("click",function(){ change(pi,hi,+1); });
+
+    wrap.appendChild(minus); wrap.appendChild(val); wrap.appendChild(plus);
+    return wrap;
+  }
+
+  function change(pi,hi,delta){
+    var cur = state.scores[pi][hi];
+    if(cur==null) cur = HOLES[hi].par; // eerste tik start op par
+    else cur = cur + delta;
+    if(delta<0 && state.scores[pi][hi]==null) cur = HOLES[hi].par + delta; // − vanaf leeg → onder par
+    if(cur<1){ delete state.scores[pi][hi]; } // terug naar leeg
+    else if(cur>12){ cur=12; state.scores[pi][hi]=cur; }
+    else { state.scores[pi][hi]=cur; }
+    render();
+  }
+
+  function renderFoot(){
+    $foot.innerHTML="";
+    var lc=document.createElement("td"); lc.className="h-cell";
+    lc.innerHTML='<span class="tot-label">Totaal</span>';
+    $foot.appendChild(lc);
+
+    // bepaal leider (laagste slagen, alleen wie iets ingevuld heeft)
+    var best=null;
+    state.players.forEach(function(p,pi){
+      var t=playerTotal(pi);
+      if(t.strokes>0 && (best===null || t.strokes<best)) best=t.strokes;
+    });
+
+    state.players.forEach(function(p,pi){
+      var t=playerTotal(pi);
+      var td=document.createElement("td");
+      if(t.strokes>0){
+        var diff = t.strokes - t.parPlayed;
+        var cls = diff<0?"tp-under":(diff===0?"tp-even":"tp-over");
+        var crown = (t.strokes===best && best>0) ? '<span class="crown"> 👑</span>' : '';
+        td.innerHTML='<div class="tot-num">'+t.strokes+crown+'</div>'+
+                     '<span class="tot-par '+cls+'">'+formatToPar(diff)+'</span>';
+        if(t.strokes===best) td.className="leader";
+      } else {
+        td.innerHTML='<div class="tot-num" style="color:var(--muted)">—</div>';
+      }
+      $foot.appendChild(td);
+    });
+  }
+
+  // --- Acties ---
+  document.getElementById("addPlayer").addEventListener("click",function(){
+    if(state.players.length>=4) return;
+    state.players.push({name:""}); state.scores.push({}); render();
+  });
+
+  document.getElementById("reset").addEventListener("click",function(){
+    if(confirm("Nieuwe ronde starten? Alle scores worden gewist (spelernamen blijven).")){
+      state.scores = state.players.map(function(){return {};});
+      render(); toast("Nieuwe ronde — succes! ⛳");
+    }
+  });
+
+  document.getElementById("share").addEventListener("click",function(){
+    var lines=["⛳ Shortgolf Twente — uitslag","Par "+COURSE_PAR+" · 9 holes",""];
+    var rows=[];
+    state.players.forEach(function(p,pi){
+      var t=playerTotal(pi);
+      if(t.strokes>0) rows.push({name:labelFor(pi), s:t.strokes, d:t.strokes-t.parPlayed});
+    });
+    if(!rows.length){ toast("Nog geen scores ingevuld"); return; }
+    rows.sort(function(a,b){return a.s-b.s;});
+    rows.forEach(function(r,i){
+      var medal = i===0?"🥇":(i===1?"🥈":(i===2?"🥉":"  "));
+      lines.push(medal+" "+r.name+" — "+r.s+" ("+formatToPar(r.d)+")");
+    });
+    var text=lines.join("\n");
+    if(navigator.share){
+      navigator.share({title:"Shortgolf Twente uitslag", text:text}).catch(function(){});
+    } else if(navigator.clipboard){
+      navigator.clipboard.writeText(text).then(function(){toast("Uitslag gekopieerd 📋");},
+        function(){fallbackCopy(text);});
+    } else { fallbackCopy(text); }
+  });
+
+  function fallbackCopy(text){
+    var ta=document.createElement("textarea"); ta.value=text;
+    ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta);
+    ta.select(); try{document.execCommand("copy"); toast("Uitslag gekopieerd 📋");}catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  var $toast=document.getElementById("toast"), toastT;
+  function toast(msg){
+    $toast.textContent=msg; $toast.classList.add("show");
+    clearTimeout(toastT); toastT=setTimeout(function(){$toast.classList.remove("show");},2000);
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
