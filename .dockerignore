@@ -1,0 +1,11 @@
+.git
+.gitignore
+.next
+node_modules
+coverage
+.env
+.env.local
+.env.*.local
+*.log
+*.tsbuildinfo
+shortgolf-twente-scorekaart.html
