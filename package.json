@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "node .next/standalone/server.js",
+    "db:prepare": "node database/migrate.mjs && node database/bootstrap.mjs",
     "db:migrate": "node database/migrate.mjs",
     "db:bootstrap": "node database/bootstrap.mjs",
     "lint": "eslint .",
