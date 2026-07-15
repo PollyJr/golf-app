@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Fairway Club monochroom icoon</title>
+  <path d="M59 394c86-72 178-80 277-26 43 24 82 26 117 8" fill="none" stroke="#000" stroke-width="30" stroke-linecap="round"/>
+  <path d="M200 360V105" fill="none" stroke="#000" stroke-width="30" stroke-linecap="round"/>
+  <path d="M220 119h178l-51 57 51 57H220z" fill="#000"/>
+  <circle cx="200" cy="391" r="35" fill="#000"/>
+</svg>

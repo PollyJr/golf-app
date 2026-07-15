@@ -1,5 +1,5 @@
-"use client";
-import { useState } from "react";
-import { CalendarCheck, Check, Clock3, MapPin, Users } from "lucide-react";
-import { courses, events as initialEvents } from "@/lib/demo-data";
-export default function EventsPage(){const [joined,setJoined]=useState<string[]>([]);return <div className="page"><div className="page-heading"><div><div className="eyebrow"><span/> clubagenda</div><h1>Samen speelt beter.</h1><p>Wedstrijden, clinics en gezellige rondes bij jouw club.</p></div></div><div className="event-list">{initialEvents.map((event,index)=>{const course=courses.find(c=>c.id===event.courseId)!;const isJoined=joined.includes(event.id);return <article className="card event-list-card" key={event.id}><div className={`event-list-art art-${index}`}><div className="event-date"><b>{new Date(event.date).getDate()}</b><span>{new Intl.DateTimeFormat("nl",{month:"short"}).format(new Date(event.date))}</span></div>{event.featured&&<span className="badge">Uitgelicht</span>}</div><div className="event-list-body"><div><h2>{event.title}</h2><p>{event.description}</p><div className="event-meta"><span><Clock3 size={13}/>{event.time}</span><span><MapPin size={13}/>{course.name}</span><span><Users size={13}/>{event.registered+(isJoined?1:0)}/{event.capacity}</span></div></div><button onClick={()=>setJoined(old=>isJoined?old.filter(id=>id!==event.id):[...old,event.id])} className={isJoined?"joined":""}>{isJoined?<><Check size={16}/> Ingeschreven</>:<><CalendarCheck size={16}/> Inschrijven</>}</button></div></article>})}</div></div>}
+import { EventsLive } from "@/components/events-live";
+import { requireSession } from "@/lib/auth";
+import { getCourses, getEvents } from "@/lib/dal";
+
+export default async function EventsPage() { const session = await requireSession(["player"]); const [events,courses] = await Promise.all([getEvents(session.clubId!,session.accountId),getCourses(session.clubId!)]); return <EventsLive initialEvents={events} courses={courses}/>; }

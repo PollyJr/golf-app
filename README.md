@@ -1,42 +1,52 @@
 # Fairway Club PWA
 
-A premium multi-tenant golf-club experience for players, club staff, and platform operators.
+Premium multi-tenant golf software for players, club owners/staff, and platform administrators. The app supports 9- and 18-hole courses, score approval, day/week/month/year leaderboards, events, installable PWA behavior, and tenant-scoped PostgreSQL storage.
 
-## Run locally
+## Local development
 
 ```bash
-npm install
+npm ci
+npm run db:migrate
+npm run db:bootstrap
 npm run dev
 ```
 
-Open `http://localhost:3000`. The seeded demo works without environment variables. Player login uses `TWT-4821` / `4821`; the club and platform dashboards are linked from the app.
+Copy `.env.example` to `.env.local` first. At minimum configure `DATABASE_URL`, a random `SESSION_SECRET` of at least 32 characters, and bootstrap credentials. Never commit either file or paste production credentials into issues or chat.
 
-## Deploy on Railway
+## Railway deployment
 
-The repository includes a multi-stage production `Dockerfile`, `railway.json`, and an uncached health endpoint at `/api/health`.
-
-1. In Railway, create a project and select **Deploy from GitHub repo**.
-2. Choose `PollyJr/golf-app`. Railway will detect the root `Dockerfile` and configuration automatically.
-3. Add the environment variables listed below when using Supabase. They are optional for the seeded demo.
-4. Deploy, then open **Settings → Networking** and generate a public domain.
-5. Confirm `/api/health` returns `{ "status": "ok" }` on the generated domain.
-
-Railway supplies `PORT` automatically. The container listens on `0.0.0.0`, runs as an unprivileged user, and uses Next.js standalone output.
-
-## Production backend and variables
-
-1. Create a Supabase project and apply `supabase/migrations/202607140001_initial.sql`.
-2. Copy `.env.example` to `.env.local` and fill in the project credentials plus a long random session secret.
-3. Configure the site and redirect URLs for magic-link authentication in Supabase.
-4. Add the same values to the Railway service before deploying:
+The repository includes a production `Dockerfile`, `railway.json`, database migrations, bootstrap automation, and `/api/health`. Link a Railway PostgreSQL service and configure:
 
 ```text
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-SESSION_SECRET=
+DATABASE_URL=<Railway internal PostgreSQL URL>
+DATABASE_SSL=false
+SESSION_SECRET=<long random value>
+IP_HASH_SECRET=<different long random value>
+BOOTSTRAP_ADMIN_EMAIL=<platform admin email>
+BOOTSTRAP_ADMIN_PASSWORD=<minimum 12 characters>
+BOOTSTRAP_CLUB_NAME=<club name>
+BOOTSTRAP_OWNER_EMAIL=<club owner email>
+BOOTSTRAP_OWNER_PASSWORD=<minimum 12 characters>
+BOOTSTRAP_PLAYER_NAME=<optional first player>
+BOOTSTRAP_PLAYER_CODE=<optional unique code>
+BOOTSTRAP_PLAYER_PIN=<optional 4-12 digits>
 ```
 
-Generate `SESSION_SECRET` as a long random value and never expose the service-role key to the browser. When Supabase is not configured, the application intentionally runs in seeded demo mode.
+Railway runs `npm run db:migrate` and `npm run db:bootstrap` before deployment. Bootstrap inserts missing accounts only; it does not overwrite existing passwords. After the first successful deploy, remove bootstrap password and PIN variables. Railway supplies `PORT`; the container listens on `0.0.0.0`.
 
-The migration contains the tenant-aware schema, role model, immutable score snapshots, leaderboard view, indexes, and row-level security policies. The UI automatically remains in seeded demo mode when Supabase is not configured.
+## Security model
+
+Sessions are opaque, random server-side records stored in PostgreSQL. Browser cookies are HttpOnly, Secure in production, and SameSite Strict. All modifying API calls require a session-bound CSRF token and a matching origin. Login attempts are rate-limited, accounts lock after repeated failures, passwords/PINs use scrypt, and security-relevant actions are audited.
+
+Authorization is enforced in server pages and API handlers. Player, club owner/staff, and platform administrator roles have separate allowlists. Every club query uses the authenticated session's `club_id`; database composite foreign keys additionally reject cross-tenant relationships.
+
+## Validation
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+The health endpoint returns HTTP 503 when PostgreSQL is unavailable, allowing Railway to avoid routing traffic to an unhealthy release.

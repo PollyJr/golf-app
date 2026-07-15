@@ -1,1 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#103f2c"/><path d="M123 407c90-57 177-53 272 0" fill="none" stroke="#c6f04d" stroke-width="34" stroke-linecap="round"/><path d="M258 355V98" stroke="#fff" stroke-width="24" stroke-linecap="round"/><path d="m272 114 126 46-126 49z" fill="#c6f04d"/><circle cx="258" cy="373" r="24" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Fairway Club maskable app-icoon</title>
+  <rect width="512" height="512" fill="#103f2c"/>
+  <circle cx="256" cy="256" r="184" fill="#164c36"/>
+  <path d="M105 365c68-55 140-62 216-21 36 19 68 20 96 5" fill="none" stroke="#c6f04d" stroke-width="19" stroke-linecap="round"/>
+  <path d="M214 333V142" fill="none" stroke="#fff" stroke-width="21" stroke-linecap="round"/>
+  <path d="M228 153h135l-38 43 38 43H228z" fill="#c6f04d"/>
+  <circle cx="214" cy="355" r="25" fill="#fff"/>
+</svg>

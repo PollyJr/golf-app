@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 96" role="img" aria-labelledby="title description">
+  <title id="title">Fairway Club</title>
+  <desc id="description">Fairway Club woordmerk met golfvlag, fairway en bal.</desc>
+  <rect width="96" height="96" rx="28" fill="#c6f04d"/>
+  <path d="M17 69c16-12 33-13 51-4 5 3 9 3 12 2" fill="none" stroke="#103f2c" stroke-width="7" stroke-linecap="round"/>
+  <path d="M39 68V20" fill="none" stroke="#103f2c" stroke-width="7" stroke-linecap="round"/>
+  <path d="M43 22h34L67 33l10 11H43z" fill="#103f2c"/>
+  <circle cx="39" cy="74" r="7" fill="#103f2c"/>
+  <text x="125" y="64" fill="#103f2c" font-family="Manrope, Arial, sans-serif" font-size="48" font-weight="800" letter-spacing="3">FAIRWAY</text>
+  <circle cx="423" cy="60" r="6" fill="#c6f04d"/>
+</svg>

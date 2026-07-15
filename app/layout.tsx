@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   description: "Your golf club, in your pocket.",
   applicationName: "Fairway Club",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Fairway" },
 };
 

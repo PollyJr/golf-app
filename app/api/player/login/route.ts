@@ -1,10 +1,51 @@
-import { createHmac, scryptSync, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { createSession, setSessionCookies } from "@/lib/auth";
+import { query } from "@/lib/db";
+import { apiError } from "@/lib/http";
+import { assertSameOrigin, hashClientIp, sha256, verifySecret } from "@/lib/security";
 
-const schema=z.object({code:z.string().trim().min(4).max(32).transform(v=>v.toUpperCase()),pin:z.string().min(4).max(12)});
-function verifyPin(pin:string,stored:string){const [algorithm,salt,hash]=stored.split("$");if(algorithm!=="scrypt"||!salt||!hash)return false;const expected=Buffer.from(hash,"hex");const actual=scryptSync(pin,salt,expected.length);return actual.length===expected.length&&timingSafeEqual(actual,expected)}
-function sessionToken(playerId:string,clubId:string){const secret=process.env.SESSION_SECRET!;const expires=Math.floor(Date.now()/1000)+60*60*24*30;const payload=Buffer.from(JSON.stringify({playerId,clubId,expires})).toString("base64url");const signature=createHmac("sha256",secret).update(payload).digest("base64url");return `${payload}.${signature}`}
+const schema = z.object({ code: z.string().trim().min(4).max(64), pin: z.string().regex(/^\d{4,12}$/) });
 
-export async function POST(request:Request){const parsed=schema.safeParse(await request.json());if(!parsed.success)return NextResponse.json({code:"INVALID_CREDENTIALS"},{status:401});const url=process.env.NEXT_PUBLIC_SUPABASE_URL;const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY;const secret=process.env.SESSION_SECRET;if(!url||!serviceKey||!secret){if(parsed.data.code!=="TWT-4821"||parsed.data.pin!=="4821")return NextResponse.json({code:"INVALID_CREDENTIALS"},{status:401});const response=NextResponse.json({ok:true,demo:true});response.cookies.set("fairway_player","demo-sophie",{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",maxAge:60*60*24*30,path:"/"});return response}const supabase=createClient(url,serviceKey,{auth:{persistSession:false}});const {data:record}=await supabase.from("player_codes").select("id,club_id,player_id,pin_hash,failed_attempts,locked_until,revoked_at").eq("code",parsed.data.code).maybeSingle();if(!record||record.revoked_at||(record.locked_until&&new Date(record.locked_until)>new Date())||!verifyPin(parsed.data.pin,record.pin_hash)){if(record)await supabase.from("player_codes").update({failed_attempts:(record.failed_attempts??0)+1,locked_until:(record.failed_attempts??0)>=4?new Date(Date.now()+15*60_000).toISOString():null}).eq("id",record.id);return NextResponse.json({code:"INVALID_CREDENTIALS"},{status:401})}await supabase.from("player_codes").update({failed_attempts:0,locked_until:null,last_used_at:new Date().toISOString()}).eq("id",record.id);const response=NextResponse.json({ok:true});response.cookies.set("fairway_player",sessionToken(record.player_id,record.club_id),{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",maxAge:60*60*24*30,path:"/"});return response}
+export async function POST(request: Request) {
+  try {
+    assertSameOrigin(request);
+    const body = schema.parse(await request.json());
+    const identifierHash = sha256(`${process.env.SESSION_SECRET}:${body.code.toUpperCase()}`);
+    const ipHash = hashClientIp(request);
+    const recent = await query<{ failures: number }>(
+      `SELECT count(*)::int AS failures FROM auth_attempts
+       WHERE attempted_at > now() - interval '15 minutes' AND NOT success
+         AND (identifier_hash = $1 OR ($2::text IS NOT NULL AND ip_hash = $2))`,
+      [identifierHash, ipHash],
+    );
+    if ((recent.rows[0]?.failures || 0) >= 8) return NextResponse.json({ code: "TOO_MANY_ATTEMPTS" }, { status: 429 });
+
+    const result = await query<{ id: string; club_id: string; pin_hash: string; failed_attempts: number; locked: boolean }>(
+      `SELECT id, club_id, pin_hash, failed_attempts, locked_until > now() AS locked
+       FROM players WHERE code = $1 AND active LIMIT 1`,
+      [body.code.toUpperCase()],
+    );
+    const player = result.rows[0];
+    const valid = Boolean(player && !player.locked && await verifySecret(body.pin, player.pin_hash));
+    await query("INSERT INTO auth_attempts(identifier_hash, ip_hash, success) VALUES ($1, $2, $3)", [identifierHash, ipHash, valid]);
+
+    if (!valid) {
+      if (player) await query(
+        `UPDATE players SET failed_attempts = failed_attempts + 1,
+         locked_until = CASE WHEN failed_attempts + 1 >= 5 THEN now() + interval '15 minutes' ELSE locked_until END
+         WHERE id = $1`,
+        [player.id],
+      );
+      return NextResponse.json({ code: "INVALID_CREDENTIALS" }, { status: 401 });
+    }
+
+    await query("UPDATE players SET failed_attempts = 0, locked_until = NULL, last_login_at = now() WHERE id = $1", [player.id]);
+    const session = await createSession({ role: "player", accountId: player.id, clubId: player.club_id }, request);
+    const response = NextResponse.json({ ok: true, redirectTo: "/app" });
+    setSessionCookies(response, session);
+    return response;
+  } catch (error) {
+    return apiError(error);
+  }
+}

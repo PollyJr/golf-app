@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Flag, Globe2, KeyRound, ShieldCheck, Trophy } from "lucide-react";
+import { ArrowRight, Check, Globe2, KeyRound, ShieldCheck, Trophy } from "lucide-react";
+import { BrandMark } from "@/components/brand";
 
 const COPY = {
   nl: { label:"De club. Altijd dichtbij.", title:"Meer dan een scorekaart.", body:"Beleef je golfclub vóór, tijdens en na je ronde. Houd scores bij, klim in het klassement en mis geen enkel clubevent.", start:"Open de clubapp", admin:"Naar clubbeheer", code:"Spelerscode", pin:"Persoonlijke pincode", login:"Inloggen als speler", demo:"Bekijk de demo" },
@@ -13,13 +14,13 @@ const COPY = {
 export default function WelcomePage() {
   const router=useRouter();
   const [language,setLanguage]=useState<"nl"|"en">("nl");
-  const [code,setCode]=useState("TWT-4821"); const [pin,setPin]=useState("4821");
+  const [code,setCode]=useState(""); const [pin,setPin]=useState("");
   const [error,setError]=useState(""); const [loading,setLoading]=useState(false);
   const copy=COPY[language];
-  async function login(event:React.FormEvent){event.preventDefault();setLoading(true);setError("");try{const response=await fetch("/api/player/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({code,pin})});if(!response.ok){setError(language==="nl"?"Controleer je spelerscode en pincode.":"Check your player code and PIN.");return}router.push("/app")}catch{setError(language==="nl"?"Inloggen lukt nu niet. Probeer opnieuw.":"Sign-in is unavailable. Please retry.")}finally{setLoading(false)}}
+  async function login(event:React.FormEvent){event.preventDefault();setLoading(true);setError("");try{const response=await fetch("/api/player/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({code,pin})});if(!response.ok){setError(language==="nl"?"Controleer je spelerscode en pincode.":"Check your player code and PIN.");return}router.replace("/app");router.refresh()}catch{setError(language==="nl"?"Inloggen lukt nu niet. Probeer opnieuw.":"Sign-in is unavailable. Please retry.")}finally{setLoading(false)}}
   return <main className="welcome">
     <nav className="welcome-nav">
-      <div className="brand brand-light"><span className="brand-mark"><Flag size={19}/></span><span>FAIRWAY<span className="brand-dot">.</span></span></div>
+      <div className="brand brand-light" aria-label="Fairway Club"><span className="brand-mark"><BrandMark/></span><span>FAIRWAY<span className="brand-dot">.</span></span></div>
       <button className="language" onClick={()=>setLanguage(language==="nl"?"en":"nl")}><Globe2 size={16}/>{language.toUpperCase()}</button>
     </nav>
     <section className="welcome-grid">
@@ -27,7 +28,6 @@ export default function WelcomePage() {
         <div className="eyebrow light"><span/> {copy.label}</div>
         <h1>{copy.title}</h1><p>{copy.body}</p>
         <div className="welcome-features"><span><Trophy size={17}/> Live klassementen</span><span><ShieldCheck size={17}/> Goedgekeurde scores</span><span><Check size={17}/> Werkt offline</span></div>
-        <Link href="/app" className="text-link">{copy.demo}<ArrowRight size={17}/></Link>
       </div>
       <form className="login-panel" onSubmit={login}>
         <div className="login-top"><div className="login-icon"><KeyRound size={23}/></div><div><span>Welkom terug</span><h2>{copy.start}</h2></div></div>
@@ -36,7 +36,7 @@ export default function WelcomePage() {
         {error&&<p className="login-error">{error}</p>}
         <button type="submit" className="primary-button" disabled={loading}>{loading?"Even wachten…":copy.login}<ArrowRight size={18}/></button>
         <div className="login-divider"><span>of</span></div>
-        <Link href="/admin" className="secondary-button">{copy.admin}</Link>
+        <Link href="/admin/login" className="secondary-button">{copy.admin}</Link>
         <p className="login-help">Je code of pincode vergeten? <button>Vraag je club</button></p>
       </form>
     </section>

@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="116" fill="#103f2c"/><path d="M153 390c72-46 142-43 218 0" fill="none" stroke="#c6f04d" stroke-width="30" stroke-linecap="round"/><path d="M258 344V112" stroke="#fff" stroke-width="22" stroke-linecap="round"/><path d="m270 126 116 42-116 45z" fill="#c6f04d"/><circle cx="258" cy="361" r="22" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Fairway Club app-icoon</title>
+  <rect width="512" height="512" rx="116" fill="#103f2c"/>
+  <path d="M67 393c79-70 165-80 258-30 47 26 85 28 120 8" fill="none" stroke="#18563d" stroke-width="86" stroke-linecap="round"/>
+  <path d="M74 393c79-64 163-70 252-23 43 23 81 24 114 6" fill="none" stroke="#c6f04d" stroke-width="22" stroke-linecap="round"/>
+  <path d="M202 352V112" fill="none" stroke="#fff" stroke-width="24" stroke-linecap="round"/>
+  <path d="M218 126h169l-47 54 47 54H218z" fill="#c6f04d"/>
+  <circle cx="202" cy="380" r="29" fill="#fff"/>
+  <circle cx="192" cy="370" r="3.5" fill="#d9e1dc"/>
+  <circle cx="210" cy="369" r="3.5" fill="#d9e1dc"/>
+  <circle cx="201" cy="383" r="3.5" fill="#d9e1dc"/>
+</svg>
