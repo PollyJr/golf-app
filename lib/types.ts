@@ -1,13 +1,14 @@
 export type Language = "nl" | "en";
 export type Period = "day" | "week" | "month" | "year";
-export type RoundStatus = "active" | "pending" | "approved" | "rejected";
+export type RoundStatus = "inviting" | "active" | "pending" | "approved" | "rejected";
+export type InvitationStatus = "pending" | "accepted";
 
 export interface Hole { number: number; par: number; distance: number; name?: string }
 export interface Course {
   id: string; name: string; holes: 9 | 18; accent: string; description: string;
   tee: string; totalPar: number; layout: Hole[];
 }
-export interface Player { id: string; name: string; initials: string; code: string; rounds: number }
+export interface Player { id: string; name: string; initials: string; username: string; code: string; rounds: number }
 export interface HoleScore { hole: number; strokes: number | null }
 export interface RoundParticipant { playerId?: string; name: string; guest: boolean; scores: HoleScore[] }
 export interface GolfRound {
@@ -16,7 +17,7 @@ export interface GolfRound {
 }
 export interface LiveRoundParticipant {
   id: string; playerId: string; name: string; initials: string; position: number;
-  totalStrokes: number; totalPar: number; scores: Array<number | null>;
+  invitationStatus: InvitationStatus; totalStrokes: number; totalPar: number; scores: Array<number | null>;
 }
 export interface LiveRoundSnapshot {
   id: string; revision: number; status: RoundStatus; starterPlayerId: string; isStarter: boolean;
@@ -26,9 +27,10 @@ export interface LiveRoundSnapshot {
   completedScores: number; totalScores: number;
 }
 export interface ActiveRoundSummary {
-  id: string; revision: number; courseName: string; holeCount: 9 | 18;
+  id: string; revision: number; status: "inviting" | "active"; myInvitationStatus: InvitationStatus;
+  courseName: string; holeCount: 9 | 18;
   createdAt: string; starterName: string; participantNames: string[];
-  participantInitials: string[]; completedScores: number; totalScores: number;
+  participantInitials: string[]; pendingInvitations: number; completedScores: number; totalScores: number;
 }
 export interface PublicRoundParticipant {
   position: number; name: string; initials: string; totalStrokes: number;

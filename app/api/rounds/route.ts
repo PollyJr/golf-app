@@ -48,9 +48,9 @@ export async function POST(request: Request) {
       if (players.rowCount !== body.playerIds.length) throw new Error("PLAYER_NOT_FOUND");
       const inserted = await client.query<{ id: string }>(
         `INSERT INTO rounds(client_id,club_id,course_id,tee_set_id,scorer_player_id,hole_count,status,completed_at)
-         VALUES ($1,$2,$3,$4,$5,$6,'active',NULL)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,NULL)
          ON CONFLICT (club_id,client_id) DO NOTHING RETURNING id`,
-        [body.clientId, session.clubId, selected.id, selected.tee_id, session.accountId, selected.hole_count],
+        [body.clientId, session.clubId, selected.id, selected.tee_id, session.accountId, selected.hole_count, body.playerIds.length > 1 ? "inviting" : "active"],
       );
       let id = inserted.rows[0]?.id;
       if (!id) {
@@ -63,15 +63,16 @@ export async function POST(request: Request) {
       const names = new Map(players.rows.map((player) => [player.id, player.display_name]));
       for (const [index, playerId] of body.playerIds.entries()) {
         await client.query(
-          `INSERT INTO round_participants(round_id,club_id,player_id,display_name,is_guest,position,total_strokes,total_par)
-           VALUES ($1,$2,$3,$4,false,$5,0,$6)`,
-          [id, session.clubId, playerId, names.get(playerId), index + 1, selected.total_par],
+          `INSERT INTO round_participants(round_id,club_id,player_id,display_name,is_guest,position,total_strokes,total_par,invitation_status,responded_at)
+           VALUES ($1,$2,$3,$4,false,$5,0,$6,$7,$8)`,
+          [id, session.clubId, playerId, names.get(playerId), index + 1, selected.total_par,
+            playerId === session.accountId ? "accepted" : "pending", playerId === session.accountId ? new Date() : null],
         );
       }
       await client.query(
         `INSERT INTO audit_log(club_id,actor_role,actor_id,action,entity_type,entity_id,metadata)
-         VALUES ($1,'player',$2,'round.started','round',$3,jsonb_build_object('participants',$4::int))`,
-        [session.clubId, session.accountId, id, body.playerIds.length],
+         VALUES ($1,'player',$2,$5,'round',$3,jsonb_build_object('participants',$4::int))`,
+        [session.clubId, session.accountId, id, body.playerIds.length, body.playerIds.length > 1 ? "round.invitations_created" : "round.started"],
       );
       return id;
     });

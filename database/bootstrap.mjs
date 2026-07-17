@@ -28,6 +28,11 @@ function slugify(value) {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+function playerUsername(value, code) {
+  const base = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 24) || "speler";
+  return `${base}-${code.toLowerCase().replace(/[^a-z0-9]/g, "").slice(-4).padStart(4, "0")}`;
+}
+
 const platform = requirePair("BOOTSTRAP_ADMIN_EMAIL", "BOOTSTRAP_ADMIN_PASSWORD");
 const owner = requirePair("BOOTSTRAP_OWNER_EMAIL", "BOOTSTRAP_OWNER_PASSWORD");
 const playerCode = process.env.BOOTSTRAP_PLAYER_CODE;
@@ -102,10 +107,10 @@ try {
     if (playerCode) {
       const initials = playerName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
       await client.query(
-        `INSERT INTO players(club_id, display_name, initials, code, pin_hash)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO players(club_id, display_name, initials, username, code, pin_hash)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (code) DO NOTHING`,
-        [clubId, playerName, initials, playerCode.toUpperCase(), hashSecret(playerPin)],
+        [clubId, playerName, initials, playerUsername(playerName, playerCode), playerCode.toUpperCase(), hashSecret(playerPin)],
       );
     }
   }

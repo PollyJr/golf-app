@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completedScoreCount, etagMatches, revisionEtag, roundIsComplete, shareExpiry } from "./rounds-core";
+import { completedScoreCount, etagMatches, invitationsComplete, revisionEtag, roundIsComplete, shareExpiry } from "./rounds-core";
 
 describe("live round rules", () => {
   it("counts only entered scores", () => {
@@ -14,6 +14,11 @@ describe("live round rules", () => {
 
   it("supports complete 18-hole rounds", () => {
     expect(roundIsComplete([{ scores: Array(18).fill(4) }], 18)).toBe(true);
+  });
+
+  it("keeps a shared round locked until every invitation is accepted", () => {
+    expect(invitationsComplete([{ invitationStatus: "accepted" }, { invitationStatus: "pending" }])).toBe(false);
+    expect(invitationsComplete([{ invitationStatus: "accepted" }, { invitationStatus: "accepted" }])).toBe(true);
   });
 
   it("expires public links exactly 24 hours after completion", () => {

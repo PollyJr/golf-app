@@ -16,7 +16,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const outcome = await withTransaction(async (client) => {
       const round = await client.query<{ scorer_player_id: string; total_par: number }>(
         `SELECT r.scorer_player_id,(SELECT sum(par)::int FROM holes WHERE club_id=r.club_id AND course_id=r.course_id AND tee_set_id=r.tee_set_id) AS total_par
-           FROM rounds r WHERE r.id=$1 AND r.club_id=$2 AND r.status='active' AND r.scorer_player_id=$3 FOR UPDATE`,
+           FROM rounds r WHERE r.id=$1 AND r.club_id=$2 AND r.status='inviting' AND r.scorer_player_id=$3 FOR UPDATE`,
         [id, session.clubId, session.accountId],
       );
       if (!round.rowCount) return "ROUND_NOT_FOUND";
@@ -35,8 +35,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         );
         try {
           await client.query(
-            `INSERT INTO round_participants(round_id,club_id,player_id,display_name,is_guest,position,total_strokes,total_par)
-             VALUES ($1,$2,$3,$4,false,$5,0,$6)`,
+            `INSERT INTO round_participants(round_id,club_id,player_id,display_name,is_guest,position,total_strokes,total_par,invitation_status)
+             VALUES ($1,$2,$3,$4,false,$5,0,$6,'pending')`,
             [id, session.clubId, body.playerId, player.rows[0].display_name, position.rows[0].position, round.rows[0].total_par],
           );
         } catch (error) {
@@ -44,7 +44,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           throw error;
         }
       }
-      await client.query(`UPDATE rounds SET revision=revision+1 WHERE id=$1 AND club_id=$2`, [id, session.clubId]);
+      const pending = await client.query<{ count: number }>(`SELECT count(*)::int AS count FROM round_participants WHERE round_id=$1 AND club_id=$2 AND invitation_status='pending'`, [id, session.clubId]);
+      await client.query(`UPDATE rounds SET status=CASE WHEN $3=0 THEN 'active'::round_status ELSE status END,revision=revision+1 WHERE id=$1 AND club_id=$2`, [id, session.clubId, pending.rows[0].count]);
       await client.query(
         `INSERT INTO audit_log(club_id,actor_role,actor_id,action,entity_type,entity_id,metadata)
          VALUES ($1,'player',$2,$3,'round',$4,jsonb_build_object('playerId',$5::text))`,

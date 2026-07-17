@@ -8,6 +8,10 @@ export function roundIsComplete(participants: Pick<LiveRoundParticipant, "scores
   return participants.length > 0 && participants.every((participant) => participant.scores.length === holeCount && participant.scores.every((score) => score !== null));
 }
 
+export function invitationsComplete(participants: Pick<LiveRoundParticipant, "invitationStatus">[]) {
+  return participants.length > 0 && participants.every((participant) => participant.invitationStatus === "accepted");
+}
+
 export function shareExpiry(completedAt: Date) {
   return new Date(completedAt.getTime() + 24 * 60 * 60 * 1000);
 }

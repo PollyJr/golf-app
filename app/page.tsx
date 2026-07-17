@@ -32,7 +32,7 @@ export default function WelcomePage() {
       <form className="login-panel" onSubmit={login}>
         <div className="login-top"><div className="login-icon"><KeyRound size={23}/></div><div><span>Welkom terug</span><h2>{copy.start}</h2></div></div>
         <label>{copy.code}<input value={code} onChange={e=>setCode(e.target.value.toUpperCase())} autoCapitalize="characters"/></label>
-        <label>{copy.pin}<input type="password" value={pin} onChange={e=>setPin(e.target.value)} inputMode="numeric"/></label>
+        <label>{copy.pin}<input type="password" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g, "").slice(0, 12))} inputMode="numeric" pattern="[0-9]*" autoComplete="current-password" enterKeyHint="go" minLength={4} maxLength={12} required/></label>
         {error&&<p className="login-error">{error}</p>}
         <button type="submit" className="primary-button" disabled={loading}>{loading?"Even wachten…":copy.login}<ArrowRight size={18}/></button>
         <div className="login-divider"><span>of</span></div>

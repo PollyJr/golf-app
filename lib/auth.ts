@@ -14,6 +14,7 @@ export interface Session {
   accountId: string;
   clubId: string | null;
   displayName: string;
+  username: string | null;
   code: string | null;
   clubName: string | null;
   clubSlug: string | null;
@@ -51,10 +52,10 @@ export async function getSession(): Promise<Session | null> {
   if (!token) return null;
   const result = await query<{
     id: string; role: AccountRole; account_id: string; club_id: string | null; csrf_hash: string;
-    display_name: string; code: string | null; club_name: string | null; club_slug: string | null;
+    display_name: string; username: string | null; code: string | null; club_name: string | null; club_slug: string | null;
   }>(
     `SELECT s.id, s.role, s.account_id, s.club_id, s.csrf_hash,
-            COALESCE(p.display_name, a.display_name) AS display_name, p.code::text,
+            COALESCE(p.display_name, a.display_name) AS display_name, p.username::text, p.code::text,
             c.name AS club_name, c.slug AS club_slug
        FROM sessions s
        LEFT JOIN players p ON s.role = 'player' AND p.id = s.account_id AND p.active
@@ -70,7 +71,7 @@ export async function getSession(): Promise<Session | null> {
   if (!row) return null;
   void query("UPDATE sessions SET last_seen_at = now() WHERE id = $1", [row.id]);
   const initials = row.display_name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
-  return { id: row.id, role: row.role, accountId: row.account_id, clubId: row.club_id, displayName: row.display_name, code: row.code, clubName: row.club_name, clubSlug: row.club_slug, initials, csrfHash: row.csrf_hash };
+  return { id: row.id, role: row.role, accountId: row.account_id, clubId: row.club_id, displayName: row.display_name, username: row.username, code: row.code, clubName: row.club_name, clubSlug: row.club_slug, initials, csrfHash: row.csrf_hash };
 }
 
 export async function requireSession(roles?: AccountRole[]) {

@@ -14,10 +14,10 @@ export const courses: Course[] = [
 ];
 
 export const players: Player[] = [
-  { id:"me", name:"Sophie de Vries", initials:"SV", code:"TWT-4821", rounds:18 },
-  { id:"p2", name:"Daan Jansen", initials:"DJ", code:"TWT-1934", rounds:24 },
-  { id:"p3", name:"Mila Bakker", initials:"MB", code:"TWT-8172", rounds:11 },
-  { id:"p4", name:"Sem de Boer", initials:"SB", code:"TWT-3760", rounds:14 }
+  { id:"me", name:"Sophie de Vries", initials:"SV", username:"sophie.golf", code:"TWT-4821", rounds:18 },
+  { id:"p2", name:"Daan Jansen", initials:"DJ", username:"daan.jansen", code:"TWT-1934", rounds:24 },
+  { id:"p3", name:"Mila Bakker", initials:"MB", username:"mila.bakker", code:"TWT-8172", rounds:11 },
+  { id:"p4", name:"Sem de Boer", initials:"SB", username:"sem.deboer", code:"TWT-3760", rounds:14 }
 ];
 
 export const leaderboard: LeaderboardEntry[] = [

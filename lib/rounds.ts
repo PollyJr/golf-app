@@ -3,7 +3,7 @@ import "server-only";
 import type { QueryResultRow } from "pg";
 import { query } from "@/lib/db";
 import { completedScoreCount } from "@/lib/rounds-core";
-import type { ActiveRoundSummary, LiveRoundParticipant, LiveRoundSnapshot, PublicRoundSnapshot, RoundStatus } from "@/lib/types";
+import type { ActiveRoundSummary, InvitationStatus, LiveRoundParticipant, LiveRoundSnapshot, PublicRoundSnapshot, RoundStatus } from "@/lib/types";
 
 type RoundBase = QueryResultRow & {
   id: string; club_id: string; revision: string; status: RoundStatus; scorer_player_id: string;
@@ -18,8 +18,8 @@ async function buildSnapshot(base: RoundBase): Promise<LiveRoundSnapshot> {
       `SELECT number, par, distance_m FROM holes WHERE club_id=$1 AND course_id=$2 AND tee_set_id=(SELECT tee_set_id FROM rounds WHERE id=$3 AND club_id=$1) ORDER BY number`,
       [base.club_id, base.course_id, base.id],
     ),
-    query<{ id: string; player_id: string; display_name: string; initials: string; position: number; total_strokes: number; total_par: number }>(
-      `SELECT rp.id, rp.player_id, rp.display_name, p.initials, rp.position, rp.total_strokes, rp.total_par
+    query<{ id: string; player_id: string; display_name: string; initials: string; position: number; invitation_status: InvitationStatus; total_strokes: number; total_par: number }>(
+      `SELECT rp.id, rp.player_id, rp.display_name, p.initials, rp.position, rp.invitation_status, rp.total_strokes, rp.total_par
          FROM round_participants rp JOIN players p ON p.id=rp.player_id AND p.club_id=rp.club_id
         WHERE rp.round_id=$1 AND rp.club_id=$2 ORDER BY rp.position`, [base.id, base.club_id],
     ),
@@ -35,7 +35,7 @@ async function buildSnapshot(base: RoundBase): Promise<LiveRoundSnapshot> {
   }
   const mapped: LiveRoundParticipant[] = participants.rows.map((participant) => ({
     id: participant.id, playerId: participant.player_id, name: participant.display_name,
-    initials: participant.initials, position: participant.position,
+    initials: participant.initials, position: participant.position, invitationStatus: participant.invitation_status,
     totalStrokes: participant.total_strokes, totalPar: participant.total_par,
     scores: holes.rows.map((hole) => byParticipant.get(participant.id)?.get(hole.number) ?? null),
   }));
@@ -96,21 +96,24 @@ export async function getPublicRound(tokenHash: string): Promise<PublicRoundSnap
 }
 
 export async function getActiveRounds(clubId: string, playerId: string): Promise<ActiveRoundSummary[]> {
-  const result = await query<{ id: string; revision: string; course_name: string; hole_count: 9 | 18; created_at: string; starter_name: string; participant_names: string[]; participant_initials: string[]; completed_scores: number; total_scores: number }>(
-    `SELECT r.id, r.revision, COALESCE(c.name->>'nl',c.name->>'en') AS course_name, r.hole_count, r.created_at,
+  const result = await query<{ id: string; revision: string; status: "inviting" | "active"; my_invitation_status: InvitationStatus; course_name: string; hole_count: 9 | 18; created_at: string; starter_name: string; participant_names: string[]; participant_initials: string[]; pending_invitations: number; completed_scores: number; total_scores: number }>(
+    `SELECT r.id, r.revision, r.status, mine.invitation_status AS my_invitation_status,
+            COALESCE(c.name->>'nl',c.name->>'en') AS course_name, r.hole_count, r.created_at,
             starter.display_name AS starter_name,
             (SELECT array_agg(rp2.display_name ORDER BY rp2.position) FROM round_participants rp2 WHERE rp2.round_id=r.id AND rp2.club_id=r.club_id) AS participant_names,
             (SELECT array_agg(p2.initials ORDER BY rp2.position) FROM round_participants rp2 JOIN players p2 ON p2.id=rp2.player_id AND p2.club_id=rp2.club_id WHERE rp2.round_id=r.id AND rp2.club_id=r.club_id) AS participant_initials,
+            (SELECT count(*)::int FROM round_participants rp2 WHERE rp2.round_id=r.id AND rp2.club_id=r.club_id AND rp2.invitation_status='pending') AS pending_invitations,
             (SELECT count(hs.id)::int FROM round_participants rp2 LEFT JOIN hole_scores hs ON hs.round_participant_id=rp2.id AND hs.club_id=rp2.club_id WHERE rp2.round_id=r.id AND rp2.club_id=r.club_id) AS completed_scores,
             (r.hole_count * (SELECT count(*) FROM round_participants rp2 WHERE rp2.round_id=r.id AND rp2.club_id=r.club_id))::int AS total_scores
        FROM rounds r JOIN courses c ON c.id=r.course_id AND c.club_id=r.club_id
        JOIN players starter ON starter.id=r.scorer_player_id AND starter.club_id=r.club_id
-      WHERE r.club_id=$1 AND r.status='active'
-        AND EXISTS (SELECT 1 FROM round_participants mine WHERE mine.round_id=r.id AND mine.club_id=$1 AND mine.player_id=$2)
+       JOIN round_participants mine ON mine.round_id=r.id AND mine.club_id=r.club_id AND mine.player_id=$2
+      WHERE r.club_id=$1 AND r.status IN ('inviting','active')
       ORDER BY r.created_at DESC`, [clubId, playerId],
   );
-  return result.rows.map((row) => ({ id: row.id, revision: Number(row.revision), courseName: row.course_name,
+  return result.rows.map((row) => ({ id: row.id, revision: Number(row.revision), status: row.status,
+    myInvitationStatus: row.my_invitation_status, courseName: row.course_name,
     holeCount: row.hole_count, createdAt: new Date(row.created_at).toISOString(), starterName: row.starter_name,
     participantNames: row.participant_names, participantInitials: row.participant_initials,
-    completedScores: row.completed_scores, totalScores: row.total_scores }));
+    pendingInvitations: row.pending_invitations, completedScores: row.completed_scores, totalScores: row.total_scores }));
 }

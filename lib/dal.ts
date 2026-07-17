@@ -24,14 +24,14 @@ export async function getCourses(clubId: string): Promise<Course[]> {
 }
 
 export async function getClubPlayers(clubId: string): Promise<Player[]> {
-  const result = await query<{ id: string; display_name: string; initials: string; code: string; rounds: number }>(
-    `SELECT p.id, p.display_name, p.initials, p.code::text,
+  const result = await query<{ id: string; display_name: string; initials: string; username: string; code: string; rounds: number }>(
+    `SELECT p.id, p.display_name, p.initials, p.username::text, p.code::text,
             count(DISTINCT rp.round_id) FILTER (WHERE r.status = 'approved')::int AS rounds
        FROM players p LEFT JOIN round_participants rp ON rp.player_id = p.id AND rp.club_id = $1
        LEFT JOIN rounds r ON r.id = rp.round_id AND r.club_id = $1
       WHERE p.club_id = $1 AND p.active GROUP BY p.id ORDER BY p.display_name`, [clubId],
   );
-  return result.rows.map((row) => ({ id: row.id, name: row.display_name, initials: row.initials, code: row.code, rounds: row.rounds }));
+  return result.rows.map((row) => ({ id: row.id, name: row.display_name, initials: row.initials, username: row.username, code: row.code, rounds: row.rounds }));
 }
 
 export async function getLeaderboard(clubId: string, period: "day" | "week" | "month" | "year", holeCount?: 9 | 18): Promise<LeaderboardEntry[]> {
