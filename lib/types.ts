@@ -14,6 +14,31 @@ export interface GolfRound {
   id: string; courseId: string; tee: string; createdAt: string; completedAt?: string;
   status: RoundStatus; participants: RoundParticipant[];
 }
+export interface LiveRoundParticipant {
+  id: string; playerId: string; name: string; initials: string; position: number;
+  totalStrokes: number; totalPar: number; scores: Array<number | null>;
+}
+export interface LiveRoundSnapshot {
+  id: string; revision: number; status: RoundStatus; starterPlayerId: string; isStarter: boolean;
+  createdAt: string; completedAt: string | null;
+  course: Course;
+  participants: LiveRoundParticipant[];
+  completedScores: number; totalScores: number;
+}
+export interface ActiveRoundSummary {
+  id: string; revision: number; courseName: string; holeCount: 9 | 18;
+  createdAt: string; starterName: string; participantNames: string[];
+  participantInitials: string[]; completedScores: number; totalScores: number;
+}
+export interface PublicRoundParticipant {
+  position: number; name: string; initials: string; totalStrokes: number;
+  totalPar: number; scores: Array<number | null>;
+}
+export interface PublicRoundSnapshot {
+  revision: number; status: RoundStatus; clubName: string; createdAt: string;
+  completedAt: string | null; course: Omit<Course, "id">;
+  participants: PublicRoundParticipant[]; completedScores: number; totalScores: number;
+}
 export interface EventItem {
   id: string; title: string; date: string; time: string; courseId: string;
   description: string; capacity: number; registered: number; joined?: boolean; featured?: boolean;

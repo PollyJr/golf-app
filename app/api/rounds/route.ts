@@ -3,9 +3,13 @@ import { z } from "zod";
 import { requireApiSession, verifyMutation } from "@/lib/auth";
 import { query, withTransaction } from "@/lib/db";
 import { apiError } from "@/lib/http";
+import { getRoundForPlayer } from "@/lib/rounds";
 
-const participant = z.object({ playerId: z.string().uuid().optional(), name: z.string().trim().min(1).max(100), guest: z.boolean(), scores: z.array(z.number().int().min(1).max(12)).min(9).max(18) }).refine((value) => value.guest ? !value.playerId : Boolean(value.playerId), { message: "Player identity does not match guest status" });
-const schema = z.object({ clientId: z.string().uuid(), courseId: z.string().uuid(), participants: z.array(participant).min(1).max(4), completedAt: z.string().datetime().optional() });
+const createSchema = z.object({
+  clientId: z.string().uuid(),
+  courseId: z.string().uuid(),
+  playerIds: z.array(z.string().uuid()).min(1).max(4),
+}).refine((value) => new Set(value.playerIds).size === value.playerIds.length, { message: "Players must be unique", path: ["playerIds"] });
 
 export async function GET() {
   try {
@@ -25,38 +29,58 @@ export async function POST(request: Request) {
   try {
     const session = await requireApiSession(["player"]);
     await verifyMutation(request, session);
-    const body = schema.parse(await request.json());
-    if (!body.participants.some((entry) => entry.playerId === session.accountId)) return NextResponse.json({ code: "SCORER_REQUIRED" }, { status: 400 });
+    const body = createSchema.parse(await request.json());
+    if (!body.playerIds.includes(session.accountId)) return NextResponse.json({ code: "STARTER_REQUIRED" }, { status: 400 });
 
     const roundId = await withTransaction(async (client) => {
-      const course = await client.query<{ id: string; hole_count: number; tee_id: string }>(
-        `SELECT c.id, c.hole_count, t.id AS tee_id FROM courses c JOIN tee_sets t ON t.course_id = c.id AND t.club_id = $2 AND t.is_default WHERE c.id = $1 AND c.club_id = $2 AND c.active FOR UPDATE`, [body.courseId, session.clubId],
+      const course = await client.query<{ id: string; hole_count: 9 | 18; tee_id: string; total_par: number; configured_holes: number }>(
+        `SELECT c.id, c.hole_count, t.id AS tee_id, sum(h.par)::int AS total_par, count(h.id)::int AS configured_holes
+           FROM courses c JOIN tee_sets t ON t.course_id=c.id AND t.club_id=$2 AND t.is_default
+           JOIN holes h ON h.course_id=c.id AND h.tee_set_id=t.id AND h.club_id=$2
+          WHERE c.id=$1 AND c.club_id=$2 AND c.active GROUP BY c.id,t.id`, [body.courseId, session.clubId],
       );
-      if (!course.rowCount) throw new Error("COURSE_NOT_FOUND");
+      if (!course.rowCount || course.rows[0].hole_count === undefined) throw new Error("COURSE_NOT_FOUND");
       const selected = course.rows[0];
-      if (body.participants.some((entry) => entry.scores.length !== selected.hole_count)) throw new Error("INVALID_SCORE_COUNT");
-      const holes = await client.query<{ number: number; par: number; distance_m: number }>(`SELECT number, par, distance_m FROM holes WHERE club_id = $1 AND course_id = $2 AND tee_set_id = $3 ORDER BY number`, [session.clubId, selected.id, selected.tee_id]);
-      if (holes.rowCount !== selected.hole_count) throw new Error("COURSE_INCOMPLETE");
-      const playerIds = body.participants.flatMap((entry) => entry.playerId ? [entry.playerId] : []);
-      const players = await client.query<{ id: string; display_name: string }>(`SELECT id, display_name FROM players WHERE club_id = $1 AND active AND id = ANY($2::uuid[])`, [session.clubId, playerIds]);
-      if (players.rowCount !== playerIds.length) throw new Error("PLAYER_NOT_FOUND");
-      const names = new Map(players.rows.map((player) => [player.id, player.display_name]));
-      const inserted = await client.query<{ id: string }>(`INSERT INTO rounds(client_id, club_id, course_id, tee_set_id, scorer_player_id, hole_count, completed_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (club_id, client_id) DO UPDATE SET client_id = EXCLUDED.client_id RETURNING id`, [body.clientId, session.clubId, selected.id, selected.tee_id, session.accountId, selected.hole_count, body.completedAt || new Date().toISOString()]);
-      const existing = await client.query("SELECT 1 FROM round_participants WHERE round_id = $1", [inserted.rows[0].id]);
-      if (existing.rowCount) return inserted.rows[0].id;
-      for (const [index, entry] of body.participants.entries()) {
-        const totalPar = holes.rows.reduce((sum, hole) => sum + hole.par, 0);
-        const totalStrokes = entry.scores.reduce((sum, score) => sum + score, 0);
-        const participantRow = await client.query<{ id: string }>(`INSERT INTO round_participants(round_id, club_id, player_id, display_name, is_guest, position, total_strokes, total_par) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, [inserted.rows[0].id, session.clubId, entry.playerId || null, entry.playerId ? names.get(entry.playerId) : entry.name, entry.guest, index + 1, totalStrokes, totalPar]);
-        for (const [holeIndex, strokes] of entry.scores.entries()) { const hole = holes.rows[holeIndex]; await client.query(`INSERT INTO hole_scores(round_participant_id, club_id, hole_number, strokes, par_snapshot, distance_snapshot) VALUES ($1,$2,$3,$4,$5,$6)`, [participantRow.rows[0].id, session.clubId, hole.number, strokes, hole.par, hole.distance_m]); }
+      if (selected.configured_holes !== selected.hole_count) throw new Error("COURSE_INCOMPLETE");
+      const players = await client.query<{ id: string; display_name: string }>(
+        `SELECT id, display_name FROM players WHERE club_id=$1 AND active AND id=ANY($2::uuid[])`, [session.clubId, body.playerIds],
+      );
+      if (players.rowCount !== body.playerIds.length) throw new Error("PLAYER_NOT_FOUND");
+      const inserted = await client.query<{ id: string }>(
+        `INSERT INTO rounds(client_id,club_id,course_id,tee_set_id,scorer_player_id,hole_count,status,completed_at)
+         VALUES ($1,$2,$3,$4,$5,$6,'active',NULL)
+         ON CONFLICT (club_id,client_id) DO NOTHING RETURNING id`,
+        [body.clientId, session.clubId, selected.id, selected.tee_id, session.accountId, selected.hole_count],
+      );
+      let id = inserted.rows[0]?.id;
+      if (!id) {
+        const existing = await client.query<{ id: string }>(
+          `SELECT id FROM rounds WHERE club_id=$1 AND client_id=$2 AND scorer_player_id=$3`, [session.clubId, body.clientId, session.accountId],
+        );
+        if (!existing.rowCount) throw new Error("ROUND_CONFLICT");
+        return existing.rows[0].id;
       }
-      await client.query(`INSERT INTO audit_log(club_id, actor_role, actor_id, action, entity_type, entity_id) VALUES ($1,'player',$2,'round.submitted','round',$3)`, [session.clubId, session.accountId, inserted.rows[0].id]);
-      return inserted.rows[0].id;
+      const names = new Map(players.rows.map((player) => [player.id, player.display_name]));
+      for (const [index, playerId] of body.playerIds.entries()) {
+        await client.query(
+          `INSERT INTO round_participants(round_id,club_id,player_id,display_name,is_guest,position,total_strokes,total_par)
+           VALUES ($1,$2,$3,$4,false,$5,0,$6)`,
+          [id, session.clubId, playerId, names.get(playerId), index + 1, selected.total_par],
+        );
+      }
+      await client.query(
+        `INSERT INTO audit_log(club_id,actor_role,actor_id,action,entity_type,entity_id,metadata)
+         VALUES ($1,'player',$2,'round.started','round',$3,jsonb_build_object('participants',$4::int))`,
+        [session.clubId, session.accountId, id, body.playerIds.length],
+      );
+      return id;
     });
-    return NextResponse.json({ id: roundId, status: "pending" }, { status: 201 });
+    const round = await getRoundForPlayer(roundId, session.clubId!, session.accountId);
+    return NextResponse.json({ round }, { status: 201, headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     if (error instanceof Error && ["COURSE_NOT_FOUND", "PLAYER_NOT_FOUND"].includes(error.message)) return NextResponse.json({ code: error.message }, { status: 404 });
-    if (error instanceof Error && ["INVALID_SCORE_COUNT", "COURSE_INCOMPLETE"].includes(error.message)) return NextResponse.json({ code: error.message }, { status: 400 });
+    if (error instanceof Error && error.message === "COURSE_INCOMPLETE") return NextResponse.json({ code: error.message }, { status: 400 });
+    if (error instanceof Error && error.message === "ROUND_CONFLICT") return NextResponse.json({ code: error.message }, { status: 409 });
     return apiError(error);
   }
 }

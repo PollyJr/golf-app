@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
         { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
       ],
     },
-    ...["/api/:path*", "/app/:path*", "/admin/:path*", "/platform/:path*"].map((source) => ({
+    ...["/api/:path*", "/app/:path*", "/admin/:path*", "/platform/:path*", "/live/:path*"].map((source) => ({
       source,
       headers: [{ key: "Cache-Control", value: "private, no-store, max-age=0" }],
     }))];
