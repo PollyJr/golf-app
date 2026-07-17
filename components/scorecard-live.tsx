@@ -7,6 +7,7 @@ import {
   Search, Share2, Trash2, Wifi, WifiOff, X,
 } from "lucide-react";
 import { secureHeaders } from "@/lib/client-security";
+import { RoundResultView } from "@/components/round-result-view";
 import type { Course, LiveRoundSnapshot, Player } from "@/lib/types";
 
 type ScoreIntent = { participantId: string; holeNumber: number; strokes: number };
@@ -215,6 +216,18 @@ export function ScorecardLive({ courses, me, initialRound = null }: {
     finally { setSaving(false); }
   }
 
+  async function cancelRound() {
+    if (!round || !round.isStarter || saving) return;
+    if (!window.confirm("Weet je zeker dat je deze ronde wilt annuleren? Alle scores, uitnodigingen en openbare links worden verwijderd.")) return;
+    setSaving(true); setError("");
+    try {
+      const response = await fetch(`/api/rounds/${round.id}`, { method: "DELETE", headers: secureHeaders(false) });
+      if (!response.ok) throw new Error("CANCEL_FAILED");
+      window.location.assign("/app");
+    } catch { setError("De ronde kon niet veilig worden geannuleerd."); }
+    finally { setSaving(false); }
+  }
+
   if (!courses.length && !round) return <div className="page"><div className="card empty"><h2>Nog geen baan ingericht</h2><p>Vraag de clubbeheerder eerst een 9- of 18-hole baan te configureren.</p></div></div>;
 
   if (!round) {
@@ -248,11 +261,12 @@ export function ScorecardLive({ courses, me, initialRound = null }: {
         {error && <p className="score-error">{error}</p>}
         <div className="invitation-flight">{round.participants.map((participant) => <div key={participant.id}><span className="avatar">{participant.initials}</span><span><b>{participant.name}</b><small>{participant.playerId === round.starterPlayerId ? "Starter" : participant.invitationStatus === "accepted" ? "Geaccepteerd" : "Wacht op antwoord"}</small></span><strong className={participant.invitationStatus}>{participant.invitationStatus === "accepted" ? <><Check size={14}/> Akkoord</> : <><Clock3 size={14}/> Open</>}</strong>{round.isStarter && participant.playerId !== me.id && participant.invitationStatus === "pending" && <button aria-label={`Trek uitnodiging voor ${participant.name} in`} onClick={() => removeInvitedPlayer(participant.playerId)} disabled={saving}><Trash2 size={15}/></button>}</div>)}</div>
         {mine?.invitationStatus === "pending" ? <div className="invitation-actions"><button className="decline" onClick={() => respondInvitation("decline")} disabled={saving}><X size={16}/> Afwijzen</button><button className="accept" onClick={() => respondInvitation("accept")} disabled={saving}><Check size={16}/> Accepteren</button></div> : <p className="invitation-wait"><Clock3 size={14}/>{pending.length} {pending.length === 1 ? "uitnodiging staat" : "uitnodigingen staan"} nog open. Het speelveld start automatisch zodra iedereen akkoord is.</p>}
+        {round.isStarter && <button className="invitation-cancel" onClick={cancelRound} disabled={saving}><Trash2 size={15}/> Ronde annuleren</button>}
       </section>
     </div>;
   }
 
-  if (round.status !== "active") return <div className="page"><div className="submitted card"><span className="submitted-icon"><Check size={34}/></span><div className="eyebrow"><span/> ronde ingediend</div><h1>Goed gespeeld!</h1><p>De scorekaart is vergrendeld en wacht op goedkeuring van de club. Openbare links verlopen 24 uur na het indienen.</p><div className="submitted-score"><small>Voortgang</small><strong>{round.course.holes}/{round.course.holes}</strong><span>compleet</span></div>{round.isStarter && <button className="secondary-button share-revoke" onClick={revokeShares} disabled={saving}><X size={16}/> Openbare links intrekken</button>}<Link className="primary-button submitted-home" href="/app">Terug naar overzicht</Link></div></div>;
+  if (round.status !== "active") return <RoundResultView round={round}/>;
 
   const hole = round.course.layout[activeHole];
   return <div className="live-score-page">
@@ -262,7 +276,7 @@ export function ScorecardLive({ courses, me, initialRound = null }: {
       <section className="hole-hero"><div><span>HOLE</span><strong>{hole.number}</strong></div><div className="hole-info"><span><small>PAR</small><b>{hole.par}</b></span><i/><span><small>AFSTAND</small><b>{hole.distance} m</b></span></div></section>
       {error && <p className="score-error">{error}</p>}
       <div className="score-players">{round.participants.map((participant) => { const value = participant.scores[activeHole]; const key = `${participant.id}:${hole.number}`; const played = participant.scores.filter((score) => score !== null).length; return <article className="card score-player" key={participant.id}><div className="score-person"><span className="avatar">{participant.initials}</span><div><b>{participant.name}{participant.playerId === me.id && <em>Jij</em>}</b><small>{played}/{round.course.holes} holes · totaal {played ? participant.totalStrokes : "—"}</small></div></div><div className="stepper"><button aria-label={`Verlaag score van ${participant.name}`} disabled={!connected || savingCells.has(key)} onClick={() => changeScore(participant.id, activeHole, -1)}><Minus/></button><strong className={value !== null ? value < hole.par ? "under" : value === hole.par ? "even" : "over" : ""}>{value ?? "·"}</strong><button aria-label={`Verhoog score van ${participant.name}`} disabled={!connected || savingCells.has(key)} onClick={() => changeScore(participant.id, activeHole, 1)}><Plus/></button></div><div className="score-label">{savingCells.has(key) ? "Synchroniseren…" : value === null ? "Nog geen score" : value === 1 ? "Hole-in-one!" : value === hole.par ? "Par" : value < hole.par ? `${hole.par - value} onder par` : `${value - hole.par} boven par`}</div></article>; })}</div>
-    </main><aside className="round-panel card"><div className="round-panel-head"><div><span>LIVE RONDE</span><h2>Flightoverzicht</h2></div><strong>{progress}%</strong></div><div className="round-progress"><span style={{ width: `${progress}%` }}/></div><div className="flight-list">{round.participants.map((participant) => <div key={participant.id}><span className="avatar">{participant.initials}</span><span><b>{participant.name}</b><small>{participant.scores.filter((score) => score !== null).length}/{round.course.holes} ingevuld</small></span><strong>{participant.scores.some((score) => score !== null) ? participant.totalStrokes : "—"}</strong></div>)}</div><div className="round-panel-actions">{round.isStarter && <><button onClick={shareRound} disabled={!connected || saving}><Link2 size={15}/> Nieuwe live link</button><button onClick={revokeShares} disabled={saving}><X size={15}/> Links intrekken</button></>}<small>De flight is door alle spelers bevestigd en tijdens de ronde vergrendeld.</small>{shareMessage && <p><Copy size={13}/>{shareMessage}</p>}{shareUrl && <a className="share-open-link" href={shareUrl} target="_blank" rel="noreferrer">Open liveweergave <ChevronRight size={14}/></a>}</div></aside></div>
-    <footer className="score-footer"><button disabled={activeHole === 0} onClick={() => setActiveHole((current) => current - 1)}><ArrowLeft/> Vorige</button><div><span>{activeHole + 1}/{round.course.holes}</span></div>{activeHole < round.course.holes - 1 ? <button className="next" onClick={() => setActiveHole((current) => current + 1)}>Volgende <ChevronRight/></button> : round.isStarter ? <button className="next" disabled={!isComplete || !connected || saving} onClick={submitRound}><Save/> {isComplete ? "Ronde indienen" : "Nog niet compleet"}</button> : <span className="waiting-starter">Wachten op starter</span>}</footer>
+    </main><aside className="round-panel card"><div className="round-panel-head"><div><span>LIVE RONDE</span><h2>Flightoverzicht</h2></div><strong>{progress}%</strong></div><div className="round-progress"><span style={{ width: `${progress}%` }}/></div><div className="flight-list">{round.participants.map((participant) => <div key={participant.id}><span className="avatar">{participant.initials}</span><span><b>{participant.name}</b><small>{participant.scores.filter((score) => score !== null).length}/{round.course.holes} ingevuld</small></span><strong>{participant.scores.some((score) => score !== null) ? participant.totalStrokes : "—"}</strong></div>)}</div><div className="round-panel-actions">{round.isStarter && <><button className="finish-round-action" onClick={submitRound} disabled={!isComplete || !connected || saving}><Save size={15}/> {isComplete ? "Ronde afsluiten" : `Nog ${round.totalScores - round.completedScores} scores nodig`}</button><button onClick={shareRound} disabled={!connected || saving}><Link2 size={15}/> Nieuwe live link</button><button onClick={revokeShares} disabled={saving}><X size={15}/> Links intrekken</button><button className="cancel-round-action" onClick={cancelRound} disabled={saving}><Trash2 size={15}/> Ronde annuleren</button></>}<small>De flight is door alle spelers bevestigd en tijdens de ronde vergrendeld.</small>{shareMessage && <p><Copy size={13}/>{shareMessage}</p>}{shareUrl && <a className="share-open-link" href={shareUrl} target="_blank" rel="noreferrer">Open liveweergave <ChevronRight size={14}/></a>}</div></aside></div>
+    <footer className="score-footer"><button disabled={activeHole === 0} onClick={() => setActiveHole((current) => current - 1)}><ArrowLeft/> Vorige</button><div><span>{activeHole + 1}/{round.course.holes}</span></div>{activeHole < round.course.holes - 1 ? <button className="next" onClick={() => setActiveHole((current) => current + 1)}>Volgende <ChevronRight/></button> : round.isStarter ? <button className="next" disabled={!isComplete || !connected || saving} onClick={submitRound}><Save/> {isComplete ? "Ronde afsluiten" : "Nog niet compleet"}</button> : <span className="waiting-starter">Wachten op starter</span>}</footer>
   </div>;
 }

@@ -32,6 +32,11 @@ export interface ActiveRoundSummary {
   createdAt: string; starterName: string; participantNames: string[];
   participantInitials: string[]; pendingInvitations: number; completedScores: number; totalScores: number;
 }
+export interface RoundResultSummary {
+  id: string; status: "pending" | "approved" | "rejected"; courseName: string;
+  holeCount: 9 | 18; completedAt: string; totalStrokes: number; totalPar: number;
+  participantCount: number; winnerName: string; myRank: number;
+}
 export interface PublicRoundParticipant {
   position: number; name: string; initials: string; totalStrokes: number;
   totalPar: number; scores: Array<number | null>;

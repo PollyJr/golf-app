@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Settings } from "lucide-react";
+import { Bell, Settings, Trophy } from "lucide-react";
 import { BrandMark } from "./brand";
 import { CoursesIcon, EventsIcon, OverviewIcon, PlayIcon, ProfileIcon, RankingIcon, type FairwayIcon } from "./fairway-icons";
 import { ServiceWorker } from "./service-worker";
@@ -14,6 +14,7 @@ const nav=[
   {href:"/app/leaderboards",label:"Klassement",icon:RankingIcon},
   {href:"/app/events",label:"Evenementen",icon:EventsIcon},
   {href:"/app/courses",label:"Banen",icon:CoursesIcon},
+  {href:"/app/results",label:"Uitslagen",icon:Trophy},
   {href:"/app/profile",label:"Mijn profiel",icon:ProfileIcon},
 ];
 

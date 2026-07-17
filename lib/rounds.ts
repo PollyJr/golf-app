@@ -3,7 +3,7 @@ import "server-only";
 import type { QueryResultRow } from "pg";
 import { query } from "@/lib/db";
 import { completedScoreCount } from "@/lib/rounds-core";
-import type { ActiveRoundSummary, InvitationStatus, LiveRoundParticipant, LiveRoundSnapshot, PublicRoundSnapshot, RoundStatus } from "@/lib/types";
+import type { ActiveRoundSummary, InvitationStatus, LiveRoundParticipant, LiveRoundSnapshot, PublicRoundSnapshot, RoundResultSummary, RoundStatus } from "@/lib/types";
 
 type RoundBase = QueryResultRow & {
   id: string; club_id: string; revision: string; status: RoundStatus; scorer_player_id: string;
@@ -116,4 +116,29 @@ export async function getActiveRounds(clubId: string, playerId: string): Promise
     holeCount: row.hole_count, createdAt: new Date(row.created_at).toISOString(), starterName: row.starter_name,
     participantNames: row.participant_names, participantInitials: row.participant_initials,
     pendingInvitations: row.pending_invitations, completedScores: row.completed_scores, totalScores: row.total_scores }));
+}
+
+export async function getRoundHistory(clubId: string, playerId: string, limit = 50): Promise<RoundResultSummary[]> {
+  const result = await query<{ id: string; status: "pending" | "approved" | "rejected"; course_name: string; hole_count: 9 | 18; completed_at: string; total_strokes: number; total_par: number; participant_count: number; winner_name: string; my_rank: number }>(
+    `WITH ranked AS (
+       SELECT r.id,r.status,r.completed_at,r.hole_count,COALESCE(c.name->>'nl',c.name->>'en') AS course_name,
+              rp.player_id,rp.display_name,rp.total_strokes,rp.total_par,
+              rank() OVER (PARTITION BY r.id ORDER BY rp.total_strokes-rp.total_par,rp.total_strokes)::int AS result_rank,
+              count(*) OVER (PARTITION BY r.id)::int AS participant_count
+         FROM rounds r JOIN courses c ON c.id=r.course_id AND c.club_id=r.club_id
+         JOIN round_participants rp ON rp.round_id=r.id AND rp.club_id=r.club_id
+        WHERE r.club_id=$1 AND r.status IN ('pending','approved','rejected')
+          AND EXISTS (SELECT 1 FROM round_participants mine WHERE mine.round_id=r.id AND mine.club_id=r.club_id AND mine.player_id=$2)
+     )
+     SELECT mine.id,mine.status,mine.course_name,mine.hole_count,mine.completed_at,mine.total_strokes,mine.total_par,
+            mine.participant_count,(SELECT winner.display_name FROM ranked winner WHERE winner.id=mine.id AND winner.result_rank=1 ORDER BY winner.display_name LIMIT 1) AS winner_name,
+            mine.result_rank AS my_rank
+       FROM ranked mine
+      WHERE mine.player_id=$2
+      ORDER BY mine.completed_at DESC LIMIT $3`,
+    [clubId, playerId, limit],
+  );
+  return result.rows.map((row) => ({ id: row.id, status: row.status, courseName: row.course_name,
+    holeCount: row.hole_count, completedAt: new Date(row.completed_at).toISOString(), totalStrokes: row.total_strokes,
+    totalPar: row.total_par, participantCount: row.participant_count, winnerName: row.winner_name, myRank: row.my_rank }));
 }
