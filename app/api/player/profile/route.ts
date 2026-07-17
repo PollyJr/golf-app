@@ -24,7 +24,7 @@ export async function PATCH(request: Request) {
         if ((error as { code?: string }).code === "23505") return NextResponse.json({ code: "USERNAME_TAKEN" }, { status: 409 });
         throw error;
       }
-      await query(`INSERT INTO audit_log(club_id,actor_role,actor_id,action,entity_type,entity_id,ip_hash) VALUES ($1,'player',$2,'player.username_changed','player',$2,$3)`, [session.clubId, session.accountId, hashClientIp(request)]);
+      await query(`INSERT INTO audit_log(club_id,actor_role,actor_id,action,entity_type,entity_id,ip_hash) VALUES ($1,'player',$2,'player.username_changed','player',$3,$4)`, [session.clubId, session.accountId, session.accountId, hashClientIp(request)]);
       return NextResponse.json({ username });
     }
 
@@ -36,7 +36,7 @@ export async function PATCH(request: Request) {
       const changed = await client.query(`UPDATE players SET pin_hash=$1,must_change_pin=false,failed_attempts=0,locked_until=NULL WHERE id=$2 AND club_id=$3 AND pin_hash=$4 RETURNING id`, [newHash, session.accountId, session.clubId, player.rows[0].pin_hash]);
       if (!changed.rowCount) return false;
       await client.query(`DELETE FROM sessions WHERE role='player' AND account_id=$1 AND id<>$2 AND club_id=$3`, [session.accountId, session.id, session.clubId]);
-      await client.query(`INSERT INTO audit_log(club_id,actor_role,actor_id,action,entity_type,entity_id,ip_hash) VALUES ($1,'player',$2,'player.pin_changed','player',$2,$3)`, [session.clubId, session.accountId, hashClientIp(request)]);
+      await client.query(`INSERT INTO audit_log(club_id,actor_role,actor_id,action,entity_type,entity_id,ip_hash) VALUES ($1,'player',$2,'player.pin_changed','player',$3,$4)`, [session.clubId, session.accountId, session.accountId, hashClientIp(request)]);
       return true;
     });
     if (!updated) return NextResponse.json({ code: "PIN_CHANGED_CONCURRENTLY" }, { status: 409 });
