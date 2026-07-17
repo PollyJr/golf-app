@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireApiSession, verifyMutation } from "@/lib/auth";
 import { query, withTransaction } from "@/lib/db";
 import { apiError } from "@/lib/http";
-import { randomToken, sha256 } from "@/lib/security";
+import { externalOrigin, randomToken, sha256 } from "@/lib/security";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return true;
     });
     if (!created) return NextResponse.json({ code: "ROUND_NOT_FOUND" }, { status: 404 });
-    return NextResponse.json({ url: `${new URL(request.url).origin}/live/${token}` }, { status: 201 });
+    return NextResponse.json({ url: `${externalOrigin(request)}/live/${token}` }, { status: 201 });
   } catch (error) { return apiError(error); }
 }
 

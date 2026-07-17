@@ -21,12 +21,17 @@ export function sha256(value: string) { return createHash("sha256").update(value
 export function clientIp(request: Request) { return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown"; }
 export function hashClientIp(request: Request) { const secret = process.env.IP_HASH_SECRET || process.env.SESSION_SECRET; return secret ? sha256(`${secret}:${clientIp(request)}`) : null; }
 
+export function externalOrigin(request: Request) {
+  const host = (request.headers.get("x-forwarded-host") || request.headers.get("host"))?.split(",")[0]?.trim();
+  const protocol = (request.headers.get("x-forwarded-proto") || new URL(request.url).protocol.replace(":", "")).split(",")[0]?.trim();
+  if (!host || !protocol || !["http", "https"].includes(protocol)) throw new SecurityError("INVALID_ORIGIN", 403);
+  return `${protocol}://${host}`;
+}
+
 export function assertSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
   if (!origin) throw new SecurityError("ORIGIN_REQUIRED", 403);
-  const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
-  const protocol = request.headers.get("x-forwarded-proto") || new URL(request.url).protocol.replace(":", "");
-  if (!host || origin !== `${protocol}://${host}`) throw new SecurityError("INVALID_ORIGIN", 403);
+  if (origin !== externalOrigin(request)) throw new SecurityError("INVALID_ORIGIN", 403);
 }
 
 export class SecurityError extends Error { constructor(public code: string, public status = 401) { super(code); } }
