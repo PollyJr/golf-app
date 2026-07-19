@@ -3,12 +3,13 @@ import "server-only";
 import type { QueryResultRow } from "pg";
 import { query } from "@/lib/db";
 import { completedScoreCount } from "@/lib/rounds-core";
+import { expandCourseLayout } from "@/lib/round-format";
 import type { ActiveRoundSummary, InvitationStatus, LiveRoundParticipant, LiveRoundSnapshot, PublicRoundSnapshot, RoundResultSummary, RoundStatus } from "@/lib/types";
 
 type RoundBase = QueryResultRow & {
   id: string; club_id: string; revision: string; status: RoundStatus; scorer_player_id: string;
   created_at: string; completed_at: string | null; club_name: string;
-  course_id: string; course_name: string; course_description: string; hole_count: 9 | 18;
+  course_id: string; course_name: string; course_description: string; hole_count: 9 | 18; course_hole_count: 9 | 18;
   accent_color: string; tee_name: string;
 };
 
@@ -33,19 +34,23 @@ async function buildSnapshot(base: RoundBase): Promise<LiveRoundSnapshot> {
     const values = byParticipant.get(score.round_participant_id) || new Map<number, number>();
     values.set(score.hole_number, score.strokes); byParticipant.set(score.round_participant_id, values);
   }
+  const layout = expandCourseLayout(
+    holes.rows.map((hole) => ({ number: hole.number, par: hole.par, distance: hole.distance_m })),
+    base.hole_count,
+  );
   const mapped: LiveRoundParticipant[] = participants.rows.map((participant) => ({
     id: participant.id, playerId: participant.player_id, name: participant.display_name,
     initials: participant.initials, position: participant.position, invitationStatus: participant.invitation_status,
     totalStrokes: participant.total_strokes, totalPar: participant.total_par,
-    scores: holes.rows.map((hole) => byParticipant.get(participant.id)?.get(hole.number) ?? null),
+    scores: layout.map((hole) => byParticipant.get(participant.id)?.get(hole.number) ?? null),
   }));
   return {
     id: base.id, revision: Number(base.revision), status: base.status,
     starterPlayerId: base.scorer_player_id, isStarter: false,
     createdAt: new Date(base.created_at).toISOString(), completedAt: base.completed_at ? new Date(base.completed_at).toISOString() : null,
     course: { id: base.course_id, name: base.course_name, description: base.course_description, holes: base.hole_count,
-      accent: base.accent_color, tee: base.tee_name, totalPar: holes.rows.reduce((sum, hole) => sum + hole.par, 0),
-      layout: holes.rows.map((hole) => ({ number: hole.number, par: hole.par, distance: hole.distance_m })) },
+      accent: base.accent_color, tee: base.tee_name, totalPar: layout.reduce((sum, hole) => sum + hole.par, 0),
+      layout },
     participants: mapped, completedScores: completedScoreCount(mapped), totalScores: mapped.length * base.hole_count,
   };
 }
@@ -55,7 +60,7 @@ export async function getRoundForPlayer(roundId: string, clubId: string, playerI
     `SELECT r.id, r.club_id, r.revision, r.status, r.scorer_player_id, r.created_at, r.completed_at,
             c.name AS club_name, cse.id AS course_id, COALESCE(cse.name->>'nl',cse.name->>'en') AS course_name,
             COALESCE(cse.description->>'nl',cse.description->>'en','') AS course_description,
-            cse.hole_count, cse.accent_color, COALESCE(t.name->>'nl',t.name->>'en') AS tee_name
+            r.hole_count, cse.hole_count AS course_hole_count, cse.accent_color, COALESCE(t.name->>'nl',t.name->>'en') AS tee_name
        FROM rounds r JOIN clubs c ON c.id=r.club_id
        JOIN courses cse ON cse.id=r.course_id AND cse.club_id=r.club_id
        JOIN tee_sets t ON t.id=r.tee_set_id AND t.club_id=r.club_id
@@ -74,7 +79,7 @@ export async function getPublicRound(tokenHash: string): Promise<PublicRoundSnap
     `SELECT r.id, r.club_id, r.revision, r.status, r.scorer_player_id, r.created_at, r.completed_at,
             c.name AS club_name, cse.id AS course_id, COALESCE(cse.name->>'nl',cse.name->>'en') AS course_name,
             COALESCE(cse.description->>'nl',cse.description->>'en','') AS course_description,
-            cse.hole_count, cse.accent_color, COALESCE(t.name->>'nl',t.name->>'en') AS tee_name
+            r.hole_count, cse.hole_count AS course_hole_count, cse.accent_color, COALESCE(t.name->>'nl',t.name->>'en') AS tee_name
        FROM round_share_links l JOIN rounds r ON r.id=l.round_id AND r.club_id=l.club_id
        JOIN clubs c ON c.id=r.club_id AND c.status IN ('trial','active')
        JOIN courses cse ON cse.id=r.course_id AND cse.club_id=r.club_id

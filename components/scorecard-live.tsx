@@ -31,6 +31,7 @@ export function ScorecardLive({ courses, me, initialRound = null }: {
   initialRound?: LiveRoundSnapshot | null;
 }) {
   const [courseId, setCourseId] = useState(courses[0]?.id || "");
+  const [roundHoleCount, setRoundHoleCount] = useState<9 | 18>(courses[0]?.holes || 9);
   const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([me]);
   const [playerSearch, setPlayerSearch] = useState("");
   const [searchResults, setSearchResults] = useState<Player[]>([]);
@@ -101,7 +102,7 @@ export function ScorecardLive({ courses, me, initialRound = null }: {
     try {
       const response = await fetch("/api/rounds", {
         method: "POST", headers: secureHeaders(),
-        body: JSON.stringify({ clientId: crypto.randomUUID(), courseId: course.id, playerIds: selectedPlayers.map((player) => player.id) }),
+        body: JSON.stringify({ clientId: crypto.randomUUID(), courseId: course.id, holeCount: roundHoleCount, playerIds: selectedPlayers.map((player) => player.id) }),
       });
       const data = await response.json();
       if (!response.ok || !data.round) throw new Error(data.code || "ROUND_CREATE_FAILED");
@@ -236,7 +237,7 @@ export function ScorecardLive({ courses, me, initialRound = null }: {
       <div className="page-heading"><div><div className="eyebrow"><span/> nieuwe scorekaart</div><h1>Stel je ronde samen.</h1><p>Zoek clubgenoten op hun unieke gebruikersnaam. Zij moeten eerst accepteren.</p></div></div>
       {error && <p className="login-error">{error}</p>}
       <div className="setup-grid">
-        <section><div className="section-heading"><h2>1. Kies je baan</h2></div><div className="course-options">{courses.map((item) => <button key={item.id} onClick={() => setCourseId(item.id)} className={`card course-option ${courseId === item.id ? "selected" : ""}`}><span className="course-orb" style={{ background: item.accent }}>{item.holes}</span><span><b>{item.name}</b><small>{item.holes} holes · par {item.totalPar} · tee {item.tee}</small></span>{courseId === item.id && <Check size={18}/>}</button>)}</div></section>
+        <section><div className="section-heading"><h2>1. Kies je baan en ronde</h2></div><div className="course-options">{courses.map((item) => <button key={item.id} onClick={() => { setCourseId(item.id); setRoundHoleCount(item.holes); }} className={`card course-option ${courseId === item.id ? "selected" : ""}`}><span className="course-orb" style={{ background: item.accent }}>{item.holes}</span><span><b>{item.name}</b><small>{item.holes}-holesbaan · par {item.totalPar} · tee {item.tee}</small></span>{courseId === item.id && <Check size={18}/>}</button>)}</div><div className="round-length-picker card"><span><b>Hoeveel holes speel je?</b><small>{course?.holes === 9 && roundHoleCount === 18 ? "Je loopt deze 9-holesbaan twee keer." : course?.holes === 18 && roundHoleCount === 9 ? "Je speelt de eerste negen holes." : `Een complete ronde van ${roundHoleCount} holes.`}</small></span><div role="group" aria-label="Aantal holes"><button className={roundHoleCount === 9 ? "active" : ""} onClick={() => setRoundHoleCount(9)}>9 holes</button><button className={roundHoleCount === 18 ? "active" : ""} onClick={() => setRoundHoleCount(18)}>18 holes</button></div></div></section>
         <section>
           <div className="section-heading"><h2>2. Nodig je flight uit</h2><span className="badge">{selectedPlayers.length}/4 spelers</span></div>
           <div className="username-search"><Search size={16}/><input aria-label="Zoek op gebruikersnaam" placeholder="Zoek @gebruikersnaam" value={playerSearch} onChange={(event) => { setPlayerSearch(event.target.value.toLowerCase()); setSearchResults([]); setSearching(false); }} autoCapitalize="none" autoCorrect="off" spellCheck={false}/>{searching && <span>Zoeken…</span>}</div>
@@ -244,7 +245,7 @@ export function ScorecardLive({ courses, me, initialRound = null }: {
           <div className="selected-flight">{selectedPlayers.map((player) => <div className="card selected-player" key={player.id}><span className="avatar">{player.initials}</span><span><b>{player.name}</b><small>{player.id === me.id ? `@${player.username} · jij bent starter` : `@${player.username} · uitnodiging vereist`}</small></span>{player.id === me.id ? <Check size={17}/> : <button aria-label={`Verwijder ${player.name}`} onClick={() => setSelectedPlayers((current) => current.filter((entry) => entry.id !== player.id))}><X size={16}/></button>}</div>)}</div>
         </section>
       </div>
-      <button className="start-round" onClick={startRound} disabled={saving}>{saving ? "Uitnodigingen versturen…" : selectedPlayers.length > 1 ? `Uitnodigingen versturen voor ${course?.name}` : `Start ronde op ${course?.name}`}<ChevronRight size={18}/></button>
+      <button className="start-round" onClick={startRound} disabled={saving}>{saving ? "Uitnodigingen versturen…" : selectedPlayers.length > 1 ? `Uitnodigingen versturen · ${roundHoleCount} holes` : `Start ${roundHoleCount} holes op ${course?.name}`}<ChevronRight size={18}/></button>
     </div>;
   }
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireApiSession, verifyMutation } from "@/lib/auth";
 import { withTransaction } from "@/lib/db";
 import { apiError } from "@/lib/http";
+import { calculateRoundPar } from "@/lib/round-format";
 
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("add"), playerId: z.string().uuid() }),
@@ -14,12 +15,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const session = await requireApiSession(["player"]); await verifyMutation(request, session);
     const body = schema.parse(await request.json()); const { id } = await params; z.string().uuid().parse(id);
     const outcome = await withTransaction(async (client) => {
-      const round = await client.query<{ scorer_player_id: string; total_par: number }>(
-        `SELECT r.scorer_player_id,(SELECT sum(par)::int FROM holes WHERE club_id=r.club_id AND course_id=r.course_id AND tee_set_id=r.tee_set_id) AS total_par
+      const round = await client.query<{ scorer_player_id: string; hole_count: 9 | 18; course_id: string; tee_set_id: string }>(
+        `SELECT r.scorer_player_id,r.hole_count,r.course_id,r.tee_set_id
            FROM rounds r WHERE r.id=$1 AND r.club_id=$2 AND r.status='inviting' AND r.scorer_player_id=$3 FOR UPDATE`,
         [id, session.clubId, session.accountId],
       );
       if (!round.rowCount) return "ROUND_NOT_FOUND";
+      const holes = await client.query<{ par: number }>(
+        `SELECT par FROM holes WHERE club_id=$1 AND course_id=$2 AND tee_set_id=$3 ORDER BY number`,
+        [session.clubId, round.rows[0].course_id, round.rows[0].tee_set_id],
+      );
+      const totalPar = calculateRoundPar(holes.rows, round.rows[0].hole_count);
       if (body.action === "remove") {
         if (body.playerId === round.rows[0].scorer_player_id) return "STARTER_REQUIRED";
         const removed = await client.query(`DELETE FROM round_participants WHERE round_id=$1 AND club_id=$2 AND player_id=$3 RETURNING id`, [id, session.clubId, body.playerId]);
@@ -37,7 +43,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           await client.query(
             `INSERT INTO round_participants(round_id,club_id,player_id,display_name,is_guest,position,total_strokes,total_par,invitation_status)
              VALUES ($1,$2,$3,$4,false,$5,0,$6,'pending')`,
-            [id, session.clubId, body.playerId, player.rows[0].display_name, position.rows[0].position, round.rows[0].total_par],
+            [id, session.clubId, body.playerId, player.rows[0].display_name, position.rows[0].position, totalPar],
           );
         } catch (error) {
           if ((error as { code?: string }).code === "23505") return "PARTICIPANT_EXISTS";

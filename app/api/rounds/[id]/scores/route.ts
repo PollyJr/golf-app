@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireApiSession, verifyMutation } from "@/lib/auth";
 import { withTransaction } from "@/lib/db";
 import { apiError } from "@/lib/http";
+import { sourceHoleNumber } from "@/lib/round-format";
 
 const schema = z.object({ participantId: z.string().uuid(), holeNumber: z.number().int().min(1).max(18), strokes: z.number().int().min(1).max(12) });
 
@@ -11,13 +12,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const session = await requireApiSession(["player"]); await verifyMutation(request, session);
     const body = schema.parse(await request.json()); const { id } = await params; z.string().uuid().parse(id);
     const result = await withTransaction(async (client) => {
-      const round = await client.query<{ course_id: string; tee_set_id: string }>(
-        `SELECT r.course_id,r.tee_set_id FROM rounds r
+      const round = await client.query<{ course_id: string; tee_set_id: string; hole_count: 9 | 18; course_hole_count: 9 | 18 }>(
+        `SELECT r.course_id,r.tee_set_id,r.hole_count,c.hole_count AS course_hole_count FROM rounds r
+          JOIN courses c ON c.id=r.course_id AND c.club_id=r.club_id
           WHERE r.id=$1 AND r.club_id=$2 AND r.status='active'
             AND EXISTS (SELECT 1 FROM round_participants mine WHERE mine.round_id=r.id AND mine.club_id=r.club_id AND mine.player_id=$3)
           FOR UPDATE`, [id, session.clubId, session.accountId],
       );
       if (!round.rowCount) return null;
+      if (body.holeNumber > round.rows[0].hole_count) throw new Error("HOLE_NOT_FOUND");
       const participant = await client.query(
         `SELECT id FROM round_participants WHERE id=$1 AND round_id=$2 AND club_id=$3 AND player_id IS NOT NULL`,
         [body.participantId, id, session.clubId],
@@ -25,7 +28,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (!participant.rowCount) throw new Error("PARTICIPANT_NOT_FOUND");
       const hole = await client.query<{ par: number; distance_m: number }>(
         `SELECT par,distance_m FROM holes WHERE club_id=$1 AND course_id=$2 AND tee_set_id=$3 AND number=$4`,
-        [session.clubId, round.rows[0].course_id, round.rows[0].tee_set_id, body.holeNumber],
+        [session.clubId, round.rows[0].course_id, round.rows[0].tee_set_id, sourceHoleNumber(body.holeNumber, round.rows[0].course_hole_count)],
       );
       if (!hole.rowCount) throw new Error("HOLE_NOT_FOUND");
       await client.query(
