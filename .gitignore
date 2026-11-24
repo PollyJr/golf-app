@@ -1,8 +1,11 @@
 node_modules
 .next
 out
+coverage
 .env
 .env.local
-coverage
+.env.*.local
 *.tsbuildinfo
+next-env.d.ts
 .DS_Store
+tests/e2e/output

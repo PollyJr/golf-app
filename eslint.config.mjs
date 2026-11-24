@@ -1,7 +1,9 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 
 export default defineConfig([
   ...nextVitals,
-  globalIgnores([".next/**", "node_modules/**", "shortgolf-twente-scorekaart.html"]),
+  ...nextTs,
+  globalIgnores([".next/**", "node_modules/**", "next-env.d.ts", "coverage/**", "public/sw.js"]),
 ]);
