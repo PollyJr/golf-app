@@ -1,9 +1,10 @@
 /**
  * End-to-end smoke test of the journeys that must never break:
  *
- *   staff create a member → the member signs in with the one-time PIN and
- *   picks their own → plays and submits a round → staff approve it →
- *   the round counts for the ranking.
+ *   staff create a member → the member signs in with the one-time PIN, picks
+ *   their own and an e-mail address → signs in again with that address →
+ *   plays and submits a round → staff approve it → the round counts for the
+ *   ranking.
  *
  * Needs a running app with the demo seed (`npm run db:seed`):
  *   BASE_URL=http://localhost:3000 npm run e2e
@@ -14,6 +15,7 @@ const BASE = process.env.BASE_URL || "http://localhost:3000";
 const OWNER = { email: process.env.E2E_OWNER_EMAIL || "owner@fairway.test", password: process.env.E2E_OWNER_PASSWORD || "fairway-owner-123" };
 const NAME = `Testspeler ${Date.now().toString(36).slice(-5)}`;
 const NEW_PIN = "482915";
+const EMAIL = `${NAME.toLowerCase().replace(/\s+/g, ".")}@e2e.example`;
 
 function step(message) {
   console.log(`  ✓ ${message}`);
@@ -53,16 +55,26 @@ async function main() {
   const player = await playerContext.newPage();
   watch(player, "player");
   await player.goto(BASE);
-  await player.getByLabel(/Spelerscode/).fill(credentials.code);
+  await player.getByLabel(/E-mailadres of spelerscode/).fill(credentials.code);
   await player.getByLabel(/Pincode/).fill(credentials.pin);
   await player.getByRole("button", { name: "Inloggen" }).click();
   await player.waitForURL(/\/app\/welcome/);
+  await player.getByLabel("E-mailadres").fill(EMAIL);
   await player.getByLabel("Eenmalige pincode").fill(credentials.pin);
   await player.getByLabel("Nieuwe pincode", { exact: true }).fill(NEW_PIN);
   await player.getByLabel("Herhaal nieuwe pincode").fill(NEW_PIN);
-  await player.getByRole("button", { name: "Pincode opslaan" }).click();
+  await player.getByRole("button", { name: "Opslaan en verder" }).click();
   await player.waitForURL(/\/app$/);
-  step("member chose a PIN and reached the home screen");
+  step("member chose a PIN and an e-mail address, and reached the home screen");
+
+  // From now on the e-mail address is enough to sign in.
+  await player.context().clearCookies();
+  await player.goto(BASE);
+  await player.getByLabel(/E-mailadres of spelerscode/).fill(EMAIL.toUpperCase());
+  await player.getByLabel(/Pincode/).fill(NEW_PIN);
+  await player.getByRole("button", { name: "Inloggen" }).click();
+  await player.waitForURL(/\/app$/);
+  step("member signed in again with their e-mail address");
 
   // ---- a solo round, nine holes ----------------------------------------------
   await player.goto(`${BASE}/app/play`);

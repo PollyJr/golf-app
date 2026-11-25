@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "club.fairway.app",
+      "sha256_cert_fingerprints": [
+        "64:8E:A2:34:57:8C:24:87:BA:41:5B:6F:DD:38:11:C1:50:16:AA:73:90:34:43:9A:67:C6:EF:4B:A2:A7:DD:3B"
+      ]
+    }
+  }
+]

@@ -8,7 +8,14 @@ import { Button } from "@/components/ui/button";
 import { FormError, TextField } from "@/components/ui/form";
 import { api } from "@/lib/api-client";
 
-export function LoginForm() {
+interface LoginFormProps {
+  /** Where to go after signing in, e.g. the round of a scanned QR code. */
+  next?: string | null;
+  /** Offer the Android app (not inside the app itself). */
+  androidDownload?: string | null;
+}
+
+export function LoginForm({ next, androidDownload }: LoginFormProps) {
   const t = useT();
   const errorMessage = useErrorMessage();
   const [identifier, setIdentifier] = useState("");
@@ -23,7 +30,7 @@ export function LoginForm() {
     try {
       const result = await api.post<{ redirectTo: string }>("/api/auth/player/login", { identifier: identifier.trim(), pin });
       // A full navigation, so the whole app renders with the new session.
-      window.location.assign(result.redirectTo);
+      window.location.assign(result.redirectTo === "/app" && next ? next : result.redirectTo);
     } catch (failure) {
       setError(errorMessage(failure));
       setBusy(false);
@@ -41,7 +48,9 @@ export function LoginForm() {
         value={identifier}
         onChange={(event) => setIdentifier(event.target.value)}
         placeholder={t("auth.login.identifierPlaceholder")}
-        autoComplete="username"
+        hint={t("auth.login.identifierHint")}
+        autoComplete="email"
+        inputMode="email"
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
@@ -76,6 +85,11 @@ export function LoginForm() {
         <Link href="/admin/login" className="text-ink-3 underline-offset-4 hover:text-ink hover:underline">
           {t("auth.login.adminLink")}
         </Link>
+        {androidDownload ? (
+          <a href={androidDownload} download className="text-ink-3 underline-offset-4 hover:text-ink hover:underline">
+            {t("app.profile.android")} · {t("app.profile.androidDownload")}
+          </a>
+        ) : null}
       </div>
     </form>
   );

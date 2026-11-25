@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The web app's design tokens (src/app/globals.css). -->
+    <color name="brand">#0F3B2A</color>
+    <color name="brand_ink">#F4F7EE</color>
+    <color name="accent">#C9F04B</color>
+    <color name="paper">#F3F0E6</color>
+    <color name="ink">#14211A</color>
+    <color name="ink_secondary">#47554C</color>
+</resources>

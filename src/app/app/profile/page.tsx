@@ -1,24 +1,34 @@
-import { ChartNoAxesColumn, ChevronRight, ClipboardList, Smartphone, Trophy } from "lucide-react";
+import { ChartNoAxesColumn, ChevronRight, ClipboardList, Download, Smartphone, Trophy } from "lucide-react";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import Link from "next/link";
+import { EmailForm } from "@/components/app/email-form";
+import { MyQrCard } from "@/components/app/my-qr-card";
 import { UsernameForm } from "@/components/app/username-form";
 import { PinForm } from "@/components/auth/pin-form";
 import { LanguageSwitch, SignOutButton, ThemeSwitch } from "@/components/preferences";
 import { Avatar } from "@/components/ui/avatar";
+import { LinkButton } from "@/components/ui/button";
 import { Card, Eyebrow, SectionHeading } from "@/components/ui/card";
 import { formatClubIndex } from "@/lib/golf/club-index";
+import { ANDROID_APK_PATH, isAndroidApp } from "@/lib/native";
 import { isThemeChoice, THEME_COOKIE } from "@/lib/theme";
 import { requirePlayer } from "@/server/auth/guards";
 import { getT } from "@/server/i18n";
-import { getPlayerSummary } from "@/server/services/players";
+import { getOwnAccount, getPlayerSummary } from "@/server/services/players";
 
 export const metadata: Metadata = { title: "Profiel" };
 
 export default async function ProfilePage() {
   const session = await requirePlayer();
   const { t, locale } = await getT();
-  const [summary, cookieStore] = await Promise.all([getPlayerSummary(session.clubId, session.accountId), cookies()]);
+  const [summary, cookieStore, account, requestHeaders] = await Promise.all([
+    getPlayerSummary(session.clubId, session.accountId),
+    cookies(),
+    getOwnAccount(session),
+    headers(),
+  ]);
+  const inApp = isAndroidApp(requestHeaders.get("user-agent"));
   const themeCookie = cookieStore.get(THEME_COOKIE)?.value;
   const links = [
     { href: "/app/stats", label: t("common.nav.stats"), icon: ChartNoAxesColumn },
@@ -50,6 +60,23 @@ export default async function ProfilePage() {
         </Card>
       </div>
 
+      <div className="grid gap-8 md:grid-cols-2">
+        <section>
+          <SectionHeading title={t("app.profile.qrHeading")} />
+          <Card>
+            <p className="mb-4 text-[13px] text-ink-3">{t("app.profile.qrLead")}</p>
+            <MyQrCard initialToken={account.qrToken} />
+          </Card>
+        </section>
+        <section>
+          <SectionHeading title={t("app.profile.emailHeading")} />
+          <Card>
+            <p className="mb-4 text-[13px] text-ink-3">{t("app.profile.emailLead")}</p>
+            <EmailForm initial={account.email} />
+          </Card>
+        </section>
+      </div>
+
       <section className="lg:hidden">
         <SectionHeading title={t("app.profile.quickLinks")} />
         <Card padding="none" className="divide-y divide-line">
@@ -74,13 +101,18 @@ export default async function ProfilePage() {
             <p className="text-sm font-semibold">{t("common.theme.label")}</p>
             <ThemeSwitch initial={isThemeChoice(themeCookie) ? themeCookie : "system"} />
           </div>
-          <div className="flex gap-3 border-t border-line pt-5">
-            <Smartphone className="mt-0.5 size-5 shrink-0 text-ink-3" />
-            <div>
-              <p className="text-sm font-semibold">{t("app.profile.install")}</p>
-              <p className="mt-0.5 text-[13px] text-ink-3">{t("app.profile.installLead")}</p>
+          {inApp ? null : (
+            <div className="flex flex-wrap items-center gap-3 border-t border-line pt-5">
+              <Smartphone className="size-5 shrink-0 text-ink-3" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">{t("app.profile.android")}</p>
+                <p className="mt-0.5 text-[13px] text-ink-3">{t("app.profile.androidLead")}</p>
+              </div>
+              <LinkButton href={ANDROID_APK_PATH} download variant="secondary" size="sm" icon={<Download className="size-4" />}>
+                {t("app.profile.androidDownload")}
+              </LinkButton>
             </div>
-          </div>
+          )}
         </Card>
       </section>
 

@@ -1,33 +1,42 @@
 "use client";
 
-import { Check, Flag, Plus, Search, UserPlus, X } from "lucide-react";
+import { Check, Flag, Plus, QrCode, ScanLine, Search, UserPlus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useErrorMessage, useT } from "@/components/providers";
+import { MyQrDialog } from "@/components/qr/qr-dialogs";
+import { QrScanner } from "@/components/qr/qr-scanner";
 import { useOverview } from "@/components/shell/overview";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState, PageHeader } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { FormError, Segmented, SelectField, Switch } from "@/components/ui/form";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/cn";
 import { formatClubIndex } from "@/lib/golf/club-index";
 import { MAX_FLIGHT_SIZE, type HoleCount, type RoundFormat } from "@/lib/golf/scoring";
+import { parseFairwayLink } from "@/lib/qr-links";
 import type { CourseDto, PlayerSummary } from "@/lib/types";
+
+/** A club mate in the flight. With a QR token they were scanned and play right away. */
+type Member = PlayerSummary & { qrToken?: string };
 
 interface RoundSetupProps {
   me: PlayerSummary;
   courses: CourseDto[];
   recentPartners: PlayerSummary[];
   events: Array<{ id: string; title: string; courseId: string | null }>;
-  preselect: { courseId?: string; partner?: PlayerSummary | null; eventId?: string };
+  preselect: { courseId?: string; partner?: Member | null; eventId?: string };
+  /** The viewer's own personal QR token, to show to club mates. */
+  myQrToken: string;
 }
 
 const SEARCH_DEBOUNCE_MS = 220;
 
-export function RoundSetup({ me, courses, recentPartners, events, preselect }: RoundSetupProps) {
+export function RoundSetup({ me, courses, recentPartners, events, preselect, myQrToken }: RoundSetupProps) {
   const t = useT();
   const router = useRouter();
   const errorMessage = useErrorMessage();
@@ -39,7 +48,8 @@ export function RoundSetup({ me, courses, recentPartners, events, preselect }: R
   const [format, setFormat] = useState<RoundFormat>("stroke");
   const [trackPutts, setTrackPutts] = useState(false);
   const [eventId, setEventId] = useState(preselect.eventId ?? "");
-  const [members, setMembers] = useState<PlayerSummary[]>(preselect.partner ? [preselect.partner] : []);
+  const [members, setMembers] = useState<Member[]>(preselect.partner ? [preselect.partner] : []);
+  const [qrDialog, setQrDialog] = useState<"scan" | "mine" | null>(null);
   const [guests, setGuests] = useState<string[]>([]);
   const [guestName, setGuestName] = useState("");
   const [query, setQuery] = useState("");
@@ -85,6 +95,29 @@ export function RoundSetup({ me, courses, recentPartners, events, preselect }: R
     setQuery("");
   }
 
+  /** A scanned personal code adds that club mate; a round code opens the round to join it. */
+  async function addScanned(text: string): Promise<string | null> {
+    const link = parseFairwayLink(text);
+    if (!link || (link.kind !== "player" && link.kind !== "round")) return t("play.qr.unknown");
+    if (link.kind === "round") {
+      setQrDialog(null);
+      router.push(link.path);
+      return null;
+    }
+    try {
+      const result = await api.get<{ player: PlayerSummary; self: boolean }>(`/api/players/qr/${link.token}`);
+      if (result.self) return t("play.qr.ownCode");
+      setMembers((current) => {
+        const others = current.filter((member) => member.id !== result.player.id);
+        return 1 + others.length + guests.length >= MAX_FLIGHT_SIZE ? current : [...others, { ...result.player, qrToken: link.token }];
+      });
+      setQrDialog(null);
+      return null;
+    } catch (failure) {
+      return failure instanceof ApiError ? errorMessage(failure) : t("common.errors.NETWORK");
+    }
+  }
+
   function addGuest(event: FormEvent) {
     event.preventDefault();
     const name = guestName.trim();
@@ -105,7 +138,8 @@ export function RoundSetup({ me, courses, recentPartners, events, preselect }: R
         holeCount,
         format,
         trackPutts,
-        playerIds: members.map((member) => member.id),
+        playerIds: members.filter((member) => !member.qrToken).map((member) => member.id),
+        qrTokens: members.flatMap((member) => (member.qrToken ? [member.qrToken] : [])),
         guests,
         eventId: playableEvents.some((event) => event.id === eventId) ? eventId : null,
       });
@@ -255,7 +289,7 @@ export function RoundSetup({ me, courses, recentPartners, events, preselect }: R
                 <Avatar name={member.name} initials={member.initials} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{member.name}</p>
-                  <p className="truncate text-[13px] text-ink-3">@{member.username}</p>
+                  <p className="truncate text-[13px] text-ink-3">{member.qrToken ? t("play.setup.scanned") : `@${member.username}`}</p>
                 </div>
                 <button
                   type="button"
@@ -359,16 +393,28 @@ export function RoundSetup({ me, courses, recentPartners, events, preselect }: R
                 </form>
               </div>
             ) : null}
+            <div className="grid grid-cols-2 gap-2 p-4">
+              <Button variant="primary" disabled={full} onClick={() => setQrDialog("scan")} icon={<ScanLine className="size-4" />}>
+                {t("play.qr.scanPlayer")}
+              </Button>
+              <Button variant="secondary" onClick={() => setQrDialog("mine")} icon={<QrCode className="size-4" />}>
+                {t("app.home.myQr")}
+              </Button>
+            </div>
           </Card>
           <p className="mt-2.5 text-[13px] text-ink-3">
-            {members.length > 0 ? t("play.setup.invitedNote") : null} {guests.length > 0 ? t("play.setup.guestNote") : null}
+            {members.some((member) => !member.qrToken) ? t("play.setup.invitedNote") : null} {guests.length > 0 ? t("play.setup.guestNote") : null}
           </p>
+          <Dialog open={qrDialog === "scan"} onClose={() => setQrDialog(null)} title={t("play.qr.scanPlayer")} description={t("play.qr.myQrLead")} size="sm">
+            <QrScanner onScan={addScanned} />
+          </Dialog>
+          <MyQrDialog open={qrDialog === "mine"} onClose={() => setQrDialog(null)} qrToken={myQrToken} name={me.name} />
         </section>
 
         <div className="sticky bottom-24 z-10 flex flex-col gap-2 lg:bottom-6">
           <FormError>{error || (matchProblem ? t("common.errors.MATCH_NEEDS_TWO") : "")}</FormError>
           <Button variant="accent" size="lg" block loading={busy} disabled={!course || matchProblem} onClick={() => void start()} icon={<Flag className="size-[1.1rem]" />} className="shadow-pop">
-            {members.length > 0 ? t("play.setup.invite") : t("play.setup.start")}
+            {members.some((member) => !member.qrToken) ? t("play.setup.invite") : t("play.setup.start")}
           </Button>
         </div>
       </div>

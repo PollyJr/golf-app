@@ -1,6 +1,7 @@
 import { Flag, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { ActiveRounds } from "@/components/app/active-rounds";
+import { QrQuickActions } from "@/components/qr/qr-dialogs";
 import { EventRow, NewsRow, RoundRow } from "@/components/app/rows";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState, Eyebrow, SectionHeading, Stat } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { requirePlayer } from "@/server/auth/guards";
 import { getT } from "@/server/i18n";
 import { listEvents } from "@/server/services/events";
 import { getPlayerRank } from "@/server/services/leaderboards";
+import { getOwnAccount } from "@/server/services/players";
 import { listNews } from "@/server/services/news";
 import { listRoundHistory } from "@/server/services/rounds";
 import { getPlayerOverview } from "@/server/services/stats";
@@ -27,12 +29,13 @@ export default async function HomePage() {
   const { clubId, accountId, club } = session;
   const format = { t, locale, timeZone: club.timeZone };
 
-  const [overview, rank, recent, events, news] = await Promise.all([
+  const [overview, rank, recent, events, news, account] = await Promise.all([
     getPlayerOverview(clubId, accountId, locale),
     getPlayerRank(clubId, accountId, { period: "month", holeCount: 9, category: "best" }, locale),
     listRoundHistory(clubId, accountId, locale, { limit: 3 }),
     listEvents(clubId, locale, { playerId: accountId, scope: "upcoming", limit: 2 }),
     listNews(clubId, locale, { limit: 2 }),
+    getOwnAccount(session),
   ]);
   const stats = overview?.stats;
   const index = overview?.player.clubIndex ?? null;
@@ -47,6 +50,10 @@ export default async function HomePage() {
           {t(`app.home.${dayPart(club.timeZone)}`, { name: firstName })}
         </h1>
       </header>
+
+      <div className="mb-8">
+        <QrQuickActions qrToken={account.qrToken} name={session.user.displayName} />
+      </div>
 
       <ActiveRounds />
 

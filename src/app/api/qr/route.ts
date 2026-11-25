@@ -6,7 +6,7 @@ import { externalOrigin } from "@/server/security";
 // Only links into our own public pages can be encoded, so this endpoint
 // cannot be used as a general-purpose QR generator.
 const querySchema = z.object({
-  path: z.string().regex(/^\/(live|join|board)\/[A-Za-z0-9_-]{4,200}$/),
+  path: z.string().regex(/^\/(live|join|board|r|p)\/[A-Za-z0-9_-]{4,200}$/),
 });
 
 export async function GET(request: Request): Promise<Response> {

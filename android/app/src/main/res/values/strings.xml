@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Fairway</string>
+    <string name="offline_title">Geen verbinding</string>
+    <string name="offline_body">Fairway kon de club niet bereiken. Controleer je internet en probeer het opnieuw.</string>
+    <string name="retry">Opnieuw proberen</string>
+    <string name="no_app_for_link">Er is geen app om deze link te openen.</string>
+    <string name="download_started">%1$s wordt gedownload…</string>
+</resources>

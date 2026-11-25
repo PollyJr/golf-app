@@ -451,6 +451,7 @@ try {
        ON CONFLICT (code) DO UPDATE
          SET must_change_pin = false, registration_status = 'approved', active = true,
              failed_attempts = 0, locked_until = NULL, username = EXCLUDED.username,
+             email = COALESCE(players.email, EXCLUDED.email),
              created_at = EXCLUDED.created_at, updated_at = now()
        RETURNING id, club_id`,
       [clubId, member.name, initialsOf(member.name), member.username, member.code, pinHash, joined, lastLogin, `${member.username}@example.com`],

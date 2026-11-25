@@ -150,6 +150,8 @@ export const common: MessageShape<typeof source> = {
     HOLE_NOT_FOUND: "This hole is not part of the round.",
     REASON_REQUIRED: "Please give a reason for the rejection.",
     EMAIL_TAKEN: "An account with this e-mail address already exists.",
+    QR_CODE_UNKNOWN: "We do not know this QR code (any more). Ask for a new one.",
+    MATCH_FULL: "A match already has two players.",
     LAST_OWNER: "A club always needs at least one active owner.",
     CANNOT_CHANGE_SELF: "You cannot do this for your own account.",
     STAFF_NOT_FOUND: "This account no longer exists.",

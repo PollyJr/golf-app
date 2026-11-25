@@ -147,6 +147,8 @@ export const common = {
     HOLE_NOT_FOUND: "Deze hole hoort niet bij de ronde.",
     REASON_REQUIRED: "Geef een reden voor de afwijzing.",
     EMAIL_TAKEN: "Er bestaat al een account met dit e-mailadres.",
+    QR_CODE_UNKNOWN: "Deze QR-code kennen we niet (meer). Vraag om een nieuwe.",
+    MATCH_FULL: "Aan een matchplay-partij doen al twee spelers mee.",
     LAST_OWNER: "Een club heeft altijd minstens één actieve eigenaar nodig.",
     CANNOT_CHANGE_SELF: "Dit kun je niet voor je eigen account doen.",
     STAFF_NOT_FOUND: "Dit account bestaat niet (meer).",

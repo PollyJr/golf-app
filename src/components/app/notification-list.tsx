@@ -15,6 +15,7 @@ import type { NotificationDto, NotificationKind } from "@/lib/types";
 
 const ICONS: Record<NotificationKind, LucideIcon> = {
   round_invite: Flag,
+  round_joined: Flag,
   round_started: Flag,
   round_approved: ShieldCheck,
   round_rejected: CircleAlert,
@@ -28,6 +29,7 @@ function hrefFor(notification: NotificationDto): string {
   const { data } = notification;
   switch (notification.kind) {
     case "round_invite":
+    case "round_joined":
     case "round_started":
       return data.roundId ? `/app/play/${data.roundId}` : "/app";
     case "round_approved":

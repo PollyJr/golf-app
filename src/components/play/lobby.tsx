@@ -1,10 +1,11 @@
 "use client";
 
-import { Check, Clock, Share2, X } from "lucide-react";
+import { Check, Clock, Share2, UserPlus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ShareDialog } from "./share-dialog";
+import { AddPlayerDialog } from "@/components/qr/qr-dialogs";
 import { useErrorMessage, useT, useToast } from "@/components/providers";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { Button, IconButton } from "@/components/ui/button";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { api } from "@/lib/api-client";
+import { MAX_FLIGHT_SIZE } from "@/lib/golf/scoring";
 import type { RoundSnapshot } from "@/lib/types";
 
 interface LobbyProps {
@@ -28,6 +30,7 @@ export function Lobby({ round, refresh }: LobbyProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const viewer = round.viewer;
   const isStarter = viewer?.isStarter ?? false;
@@ -61,9 +64,14 @@ export function Lobby({ round, refresh }: LobbyProps) {
           ← {t("common.back")}
         </Link>
         {viewer?.invitation === "accepted" ? (
-          <IconButton label={t("play.share.button")} variant="secondary" onClick={() => setSharing(true)}>
-            <Share2 className="size-[1.1rem]" />
-          </IconButton>
+          <div className="flex gap-2">
+            <IconButton label={t("play.qr.addPlayer")} variant="secondary" onClick={() => setAdding(true)}>
+              <UserPlus className="size-[1.1rem]" />
+            </IconButton>
+            <IconButton label={t("play.share.button")} variant="secondary" onClick={() => setSharing(true)}>
+              <Share2 className="size-[1.1rem]" />
+            </IconButton>
+          </div>
         ) : null}
       </div>
 
@@ -190,6 +198,15 @@ export function Lobby({ round, refresh }: LobbyProps) {
             </Button>
           </>
         }
+      />
+
+      <AddPlayerDialog
+        open={adding}
+        onClose={() => setAdding(false)}
+        roundId={round.id}
+        joinToken={round.joinToken ?? null}
+        full={round.participants.length >= MAX_FLIGHT_SIZE || (round.format === "match" && round.participants.length >= 2)}
+        onAdded={() => void refresh()}
       />
 
       <ShareDialog

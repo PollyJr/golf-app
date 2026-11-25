@@ -8,11 +8,22 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Frame-Options", value: "DENY" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+  // The camera is used by the QR scanner, on our own pages only.
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=()" },
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
 ];
 
-const privatePaths = ["/api/:path*", "/app/:path*", "/admin/:path*", "/platform/:path*", "/live/:path*", "/board/:path*", "/join/:path*"];
+const privatePaths = [
+  "/api/:path*",
+  "/app/:path*",
+  "/admin/:path*",
+  "/platform/:path*",
+  "/live/:path*",
+  "/board/:path*",
+  "/join/:path*",
+  "/r/:path*",
+  "/p/:path*",
+];
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -26,6 +37,23 @@ const nextConfig: NextConfig = {
         source,
         headers: [{ key: "Cache-Control", value: "private, no-store, max-age=0" }],
       })),
+      {
+        // The Android app. Not cached for long, so a new build reaches people.
+        source: "/downloads/:file*.apk",
+        headers: [
+          { key: "Content-Type", value: "application/vnd.android.package-archive" },
+          { key: "Content-Disposition", value: "attachment" },
+          { key: "Cache-Control", value: "public, max-age=300, must-revalidate" },
+        ],
+      },
+      {
+        // Android checks this file to open Fairway links in the app.
+        source: "/.well-known/assetlinks.json",
+        headers: [
+          { key: "Content-Type", value: "application/json" },
+          { key: "Cache-Control", value: "public, max-age=3600" },
+        ],
+      },
       {
         source: "/sw.js",
         headers: [

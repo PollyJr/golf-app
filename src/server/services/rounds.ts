@@ -55,6 +55,7 @@ interface RoundBaseRow {
   completed_at: Date | null;
   rejection_reason: string | null;
   share_token: string | null;
+  join_token: string | null;
   course_id: string;
   course_name: LocalizedText;
   accent_color: string;
@@ -69,7 +70,7 @@ const ROUND_BASE = `
          r.starter_player_id, starter.display_name AS starter_name,
          club.name AS club_name, club.timezone,
          club.primary_color, club.accent_color AS club_accent_color,
-         r.created_at, r.started_at, r.completed_at, r.rejection_reason, r.share_token,
+         r.created_at, r.started_at, r.completed_at, r.rejection_reason, r.share_token, r.join_token,
          r.course_id, c.name AS course_name, c.accent_color,
          r.tee_set_id, t.name AS tee_name,
          r.event_id, e.title AS event_title
@@ -206,6 +207,8 @@ export async function getRoundForPlayer(
     invitation: mine?.invitation ?? null,
   };
   snapshot.shareToken = mine ? base.share_token : null;
+  snapshot.joinToken =
+    mine?.invitation === "accepted" && (base.status === "inviting" || base.status === "active") ? base.join_token : null;
   return snapshot;
 }
 
@@ -316,7 +319,10 @@ export interface CreateRoundInput {
   holeCount: HoleCount;
   format: RoundFormat;
   trackPutts: boolean;
+  /** Club mates found by search: they receive an invitation. */
   playerIds: string[];
+  /** Club mates whose personal QR code was scanned: they play right away. */
+  qrTokens?: string[];
   guests: string[];
   eventId: string | null;
 }
@@ -325,8 +331,9 @@ export async function createRound(session: ClubSession, input: CreateRoundInput)
   const clubId = session.clubId;
   const starterId = session.accountId;
   const invited = [...new Set(input.playerIds)].filter((id) => id !== starterId);
+  const qrTokens = [...new Set(input.qrTokens ?? [])];
   const guests = input.guests.map((name) => name.trim()).filter(Boolean);
-  const flightSize = 1 + invited.length + guests.length;
+  const flightSize = 1 + invited.length + qrTokens.length + guests.length;
 
   if (flightSize > MAX_FLIGHT_SIZE) throw badRequest("FLIGHT_FULL");
   if (input.format === "match" && flightSize !== 2) throw badRequest("MATCH_NEEDS_TWO");
@@ -362,6 +369,17 @@ export async function createRound(session: ClubSession, input: CreateRoundInput)
       );
       if (players.length !== invited.length + 1) throw notFound("PLAYER_NOT_FOUND");
       const names = new Map(players.map((player) => [player.id, player.display_name]));
+
+      // Showing your QR code to the starter is saying yes: no invitation needed.
+      const scanned = await many<{ id: string; display_name: string }>(
+        `SELECT id, display_name FROM players
+          WHERE club_id = $1 AND active AND registration_status = 'approved' AND qr_token = ANY($2::text[])`,
+        [clubId, qrTokens],
+        tx,
+      );
+      if (scanned.length !== qrTokens.length) throw notFound("QR_CODE_UNKNOWN");
+      const scannedIds = scanned.map((player) => player.id).filter((id) => id !== starterId && !invited.includes(id));
+      for (const player of scanned) names.set(player.id, player.display_name);
 
       if (input.eventId) {
         const event = await maybeOne(
@@ -401,6 +419,7 @@ export async function createRound(session: ClubSession, input: CreateRoundInput)
 
       const rows: Array<[string | null, string, boolean, InvitationStatus]> = [
         [starterId, names.get(starterId) ?? session.user.displayName, false, "accepted"],
+        ...scannedIds.map((id): [string, string, boolean, InvitationStatus] => [id, names.get(id) ?? "", false, "accepted"]),
         ...invited.map((id): [string, string, boolean, InvitationStatus] => [id, names.get(id) ?? "", false, "pending"]),
         ...guests.map((name): [null, string, boolean, InvitationStatus] => [null, name.slice(0, 60), true, "accepted"]),
       ];
@@ -413,12 +432,14 @@ export async function createRound(session: ClubSession, input: CreateRoundInput)
         );
       }
 
-      await notify(tx, clubId, invited, "round_invite", {
+      const notice = {
         roundId: round.id,
         starterName: session.user.displayName,
         courseName: pickText(course.name, session.club.defaultLanguage),
-      });
-      await publish(tx, [topics.club(clubId), ...[starterId, ...invited].map(topics.player)], "rounds");
+      };
+      await notify(tx, clubId, invited, "round_invite", notice);
+      await notify(tx, clubId, scannedIds, "round_joined", notice);
+      await publish(tx, [topics.club(clubId), ...[starterId, ...invited, ...scannedIds].map(topics.player)], "rounds");
       await audit(
         {
           clubId,
@@ -532,6 +553,174 @@ export async function startRoundNow(session: ClubSession, roundId: string): Prom
     await bumpRound(tx, session.clubId, roundId, "lobby", { players });
     await audit({ clubId: session.clubId, actor: session, action: "round.started", entityType: "round", entityId: roundId }, tx);
   });
+}
+
+// ------------------------------------------------------------ QR codes --
+
+/**
+ * Puts a player in the flight as accepted. Someone who shows their QR code,
+ * or scans the round's, is standing right there: no invitation is needed.
+ */
+async function addAcceptedPlayer(
+  tx: Db,
+  clubId: string,
+  round: LockedRound,
+  player: { id: string; name: string },
+): Promise<"added" | "accepted" | "already"> {
+  const existing = await maybeOne<{ id: string; invitation_status: InvitationStatus }>(
+    "SELECT id, invitation_status FROM round_participants WHERE round_id = $1 AND player_id = $2 FOR UPDATE",
+    [round.id, player.id],
+    tx,
+  );
+  if (existing?.invitation_status === "accepted") return "already";
+  if (existing) {
+    await tx.query(
+      "UPDATE round_participants SET invitation_status = 'accepted', responded_at = now(), updated_at = now() WHERE id = $1",
+      [existing.id],
+    );
+    return "accepted";
+  }
+
+  const flight = await one<{ total: number; par: number | null; free: number | null }>(
+    `SELECT count(*)::int AS total, max(total_par)::int AS par,
+            (SELECT min(slot)::int FROM generate_series(1, ${MAX_FLIGHT_SIZE}) AS slot
+              WHERE NOT EXISTS (SELECT 1 FROM round_participants rp WHERE rp.round_id = $1 AND rp.position = slot)) AS free
+       FROM round_participants WHERE round_id = $1`,
+    [round.id],
+    tx,
+  );
+  if (round.format === "match" && flight.total >= 2) throw conflict("MATCH_FULL");
+  if (flight.total >= MAX_FLIGHT_SIZE || flight.free === null) throw conflict("FLIGHT_FULL");
+  await tx.query(
+    `INSERT INTO round_participants (round_id, club_id, player_id, display_name, is_guest, position,
+                                     total_strokes, total_par, invitation_status, responded_at)
+     VALUES ($1, $2, $3, $4, false, $5, 0, $6, 'accepted', now())`,
+    [round.id, clubId, player.id, player.name, flight.free, flight.par ?? 0],
+  );
+  return "added";
+}
+
+async function courseNameOf(tx: Db, roundId: string, language: Locale): Promise<string> {
+  const row = await one<{ name: LocalizedText }>(
+    "SELECT c.name FROM rounds r JOIN courses c ON c.id = r.course_id WHERE r.id = $1",
+    [roundId],
+    tx,
+  );
+  return pickText(row.name, language);
+}
+
+/** A player in the flight scans a club mate's personal QR code to add them. */
+export async function addParticipantByQr(
+  session: ClubSession,
+  roundId: string,
+  qrToken: string,
+): Promise<{ name: string; outcome: "added" | "accepted" | "already" }> {
+  return transaction(async (tx) => {
+    const round = await lockRound(tx, session.clubId, roundId, ["inviting", "active"]);
+    const me = await maybeOne(
+      "SELECT 1 FROM round_participants WHERE round_id = $1 AND player_id = $2 AND invitation_status = 'accepted'",
+      [roundId, session.accountId],
+      tx,
+    );
+    if (!me) throw notFound("ROUND_NOT_FOUND");
+
+    const player = await maybeOne<{ id: string; display_name: string }>(
+      `SELECT id, display_name FROM players
+        WHERE club_id = $1 AND qr_token = $2 AND active AND registration_status = 'approved'`,
+      [session.clubId, qrToken],
+      tx,
+    );
+    if (!player) throw notFound("QR_CODE_UNKNOWN");
+
+    const outcome = await addAcceptedPlayer(tx, session.clubId, round, { id: player.id, name: player.display_name });
+    if (outcome !== "already") {
+      await settleLobby(tx, roundId, round.status, round.format);
+      await notify(tx, session.clubId, [player.id], "round_joined", {
+        roundId,
+        starterName: session.user.displayName,
+        courseName: await courseNameOf(tx, roundId, session.club.defaultLanguage),
+      });
+      await bumpRound(tx, session.clubId, roundId, "lobby", { players: [...(await participantPlayerIds(tx, roundId))] });
+      await audit(
+        { clubId: session.clubId, actor: session, action: "round.player_added_by_qr", entityType: "round", entityId: roundId, metadata: { playerId: player.id } },
+        tx,
+      );
+    }
+    return { name: player.display_name, outcome };
+  });
+}
+
+/** A club mate scans the round's QR code and joins the flight. */
+export async function joinRoundByToken(session: ClubSession, joinToken: string): Promise<string> {
+  return transaction(async (tx) => {
+    const round = await maybeOne<LockedRound>(
+      `SELECT id, status, format, starter_player_id, hole_count
+         FROM rounds
+        WHERE join_token = $1 AND club_id = $2 AND status IN ('inviting', 'active')
+          FOR UPDATE`,
+      [joinToken, session.clubId],
+      tx,
+    );
+    if (!round) throw notFound("ROUND_NOT_FOUND");
+
+    const outcome = await addAcceptedPlayer(tx, session.clubId, round, { id: session.accountId, name: session.user.displayName });
+    if (outcome !== "already") {
+      await settleLobby(tx, round.id, round.status, round.format);
+      await bumpRound(tx, session.clubId, round.id, "lobby", { players: await participantPlayerIds(tx, round.id) });
+      await audit({ clubId: session.clubId, actor: session, action: "round.joined_by_qr", entityType: "round", entityId: round.id }, tx);
+    }
+    return round.id;
+  });
+}
+
+export interface JoinPreview {
+  roundId: string;
+  open: boolean;
+  courseName: string;
+  holeCount: HoleCount;
+  format: RoundFormat;
+  starterName: string;
+  participants: Array<{ name: string; initials: string; guest: boolean }>;
+  alreadyIn: boolean;
+  full: boolean;
+}
+
+/** What a scanned round QR code leads to, before the player decides to join. */
+export async function getJoinPreview(session: ClubSession, joinToken: string, locale: Locale): Promise<JoinPreview | null> {
+  const row = await maybeOne<{
+    id: string;
+    status: RoundStatus;
+    format: RoundFormat;
+    hole_count: HoleCount;
+    course_name: LocalizedText;
+    starter_name: string;
+    participants: Array<{ name: string; guest: boolean; player_id: string | null; invitation: InvitationStatus }> | null;
+  }>(
+    `SELECT r.id, r.status, r.format, r.hole_count, c.name AS course_name, starter.display_name AS starter_name,
+            (SELECT json_agg(json_build_object('name', rp.display_name, 'guest', rp.is_guest,
+                                               'player_id', rp.player_id, 'invitation', rp.invitation_status)
+                             ORDER BY rp.position)
+               FROM round_participants rp WHERE rp.round_id = r.id) AS participants
+       FROM rounds r
+       JOIN courses c ON c.id = r.course_id
+       JOIN players starter ON starter.id = r.starter_player_id
+      WHERE r.join_token = $1 AND r.club_id = $2`,
+    [joinToken, session.clubId],
+  );
+  if (!row) return null;
+  const participants = row.participants ?? [];
+  const mine = participants.find((participant) => participant.player_id === session.accountId);
+  return {
+    roundId: row.id,
+    open: row.status === "inviting" || row.status === "active",
+    courseName: pickText(row.course_name, locale),
+    holeCount: row.hole_count,
+    format: row.format,
+    starterName: row.starter_name,
+    participants: participants.map((participant) => ({ name: participant.name, initials: initialsOf(participant.name), guest: participant.guest })),
+    alreadyIn: mine?.invitation === "accepted",
+    full: !mine && (participants.length >= MAX_FLIGHT_SIZE || (row.format === "match" && participants.length >= 2)),
+  };
 }
 
 /** A participant other than the starter steps out of a round that is not finished. */

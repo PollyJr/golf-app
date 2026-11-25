@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, CloudOff, Ellipsis, Flag, Lightbulb, LogOut, Share2, TableProperties, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CloudOff, Ellipsis, Flag, Lightbulb, LogOut, Share2, TableProperties, Trash2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -9,6 +9,7 @@ import { ShareDialog } from "./share-dialog";
 import { MatchLine, Standings } from "./standings";
 import { useScoreQueue } from "./use-score-queue";
 import { ScoreMark, ToPar } from "@/components/golf/score-mark";
+import { AddPlayerDialog } from "@/components/qr/qr-dialogs";
 import { ScorecardTable } from "@/components/golf/scorecard-table";
 import { useErrorMessage, useT, useToast } from "@/components/providers";
 import { Avatar } from "@/components/ui/avatar";
@@ -19,7 +20,7 @@ import type { Connection } from "@/hooks/use-live-resource";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/cn";
 import { stablefordPoints } from "@/lib/golf/formats";
-import { holesPlayed, MAX_STROKES, nextOpenHole, scoreKind, toPar, totalStrokes } from "@/lib/golf/scoring";
+import { holesPlayed, MAX_FLIGHT_SIZE, MAX_STROKES, nextOpenHole, scoreKind, toPar, totalStrokes } from "@/lib/golf/scoring";
 import type { RoundParticipantDto, RoundSnapshot } from "@/lib/types";
 
 interface LiveScorecardProps {
@@ -50,7 +51,7 @@ export function LiveScorecard({ round, connection, refresh, autoApprove }: LiveS
   const [activeHole, setActiveHole] = useState(() =>
     nextOpenHole(round.participants.map((participant) => participant.scores), round.holeCount),
   );
-  const [dialog, setDialog] = useState<"menu" | "overview" | "finish" | "share" | "leave" | "cancel" | null>(null);
+  const [dialog, setDialog] = useState<"menu" | "overview" | "finish" | "share" | "add" | "leave" | "cancel" | null>(null);
   const [busy, setBusy] = useState(false);
 
   const hole = holes[Math.min(activeHole, holes.length - 1)];
@@ -324,6 +325,9 @@ export function LiveScorecard({ round, connection, refresh, autoApprove }: LiveS
           <Button variant="secondary" block onClick={() => setDialog("overview")} icon={<TableProperties className="size-4" />}>
             {t("play.card.overview")}
           </Button>
+          <Button variant="secondary" block onClick={() => setDialog("add")} icon={<UserPlus className="size-4" />}>
+            {t("play.qr.addPlayer")}
+          </Button>
           <Button variant="secondary" block onClick={() => setDialog("share")} icon={<Share2 className="size-4" />}>
             {t("play.share.title")}
           </Button>
@@ -408,6 +412,15 @@ export function LiveScorecard({ round, connection, refresh, autoApprove }: LiveS
             </Button>
           </>
         }
+      />
+
+      <AddPlayerDialog
+        open={dialog === "add"}
+        onClose={() => setDialog(null)}
+        roundId={round.id}
+        joinToken={view.joinToken ?? null}
+        full={view.participants.length >= MAX_FLIGHT_SIZE || (view.format === "match" && view.participants.length >= 2)}
+        onAdded={() => void refresh()}
       />
 
       <ShareDialog

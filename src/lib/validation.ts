@@ -61,7 +61,8 @@ export const formatSchema = z.enum(["stroke", "stableford", "match"]);
 // ----------------------------------------------------------------- auth --
 
 export const playerLoginSchema = z.object({
-  identifier: trimmed(3, 64),
+  /** E-mail address, player code or username. */
+  identifier: trimmed(3, 254),
   pin: pinSchema,
 });
 
@@ -75,13 +76,15 @@ export const registrationSchema = z.object({
   displayName: trimmed(2, 80),
   username: z.string().trim().toLowerCase().regex(USERNAME_PATTERN),
   pin: pinSchema,
-  email: optionalEmail,
+  /** Required: members sign in with it. */
+  email: z.email().max(254),
 });
 
 export const profileSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("username"), username: trimmed(3, 30) }),
   z.object({ action: z.literal("pin"), currentPin: pinSchema, newPin: pinSchema }),
   z.object({ action: z.literal("language"), language: localeSchema }),
+  z.object({ action: z.literal("email"), email: optionalEmail }),
 ]);
 
 export const passwordChangeSchema = z.object({
@@ -91,6 +94,9 @@ export const passwordChangeSchema = z.object({
 
 // --------------------------------------------------------------- rounds --
 
+/** The token behind a personal or round QR code. */
+export const qrTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{16,64}$/);
+
 export const createRoundSchema = z
   .object({
     clientId: z.uuid(),
@@ -98,11 +104,14 @@ export const createRoundSchema = z
     holeCount: holeCountSchema,
     format: formatSchema.default("stroke"),
     trackPutts: z.boolean().default(false),
+    /** Club mates found by search: they receive an invitation. */
     playerIds: z.array(z.uuid()).max(MAX_FLIGHT_SIZE - 1).default([]),
+    /** Club mates whose QR code was scanned: they play right away. */
+    qrTokens: z.array(qrTokenSchema).max(MAX_FLIGHT_SIZE - 1).default([]),
     guests: z.array(trimmed(1, 60)).max(MAX_FLIGHT_SIZE - 1).default([]),
     eventId: z.uuid().nullish().transform((value) => value ?? null),
   })
-  .refine((value) => 1 + value.playerIds.length + value.guests.length <= MAX_FLIGHT_SIZE, {
+  .refine((value) => 1 + value.playerIds.length + value.qrTokens.length + value.guests.length <= MAX_FLIGHT_SIZE, {
     path: ["playerIds"],
     message: "FLIGHT_FULL",
   });
@@ -118,6 +127,7 @@ export const invitationResponseSchema = z.object({ decision: z.enum(["accept", "
 
 export const lobbyActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("remove"), participantId: z.uuid() }),
+  z.object({ action: z.literal("add-by-qr"), qrToken: qrTokenSchema }),
   z.object({ action: z.literal("start") }),
   z.object({ action: z.literal("leave") }),
 ]);

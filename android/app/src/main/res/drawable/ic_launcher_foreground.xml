@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The flag-on-a-green mark from src/components/brand.tsx (48-unit grid),
+     scaled into the 66dp safe zone of a 108dp adaptive icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="1.25"
+        android:scaleY="1.25"
+        android:translateX="24"
+        android:translateY="24">
+        <path
+            android:pathData="M8,36c8,-6 17,-6.5 26,-2.2 2.4,1.1 4.4,1.2 6,0.5"
+            android:strokeWidth="3.6"
+            android:strokeColor="#C9F04B"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M20,36.5V10"
+            android:strokeWidth="3.6"
+            android:strokeColor="#C9F04B"
+            android:strokeLineCap="round" />
+        <path
+            android:fillColor="#C9F04B"
+            android:pathData="M22.5,11h16l-4.8,5.25 4.8,5.25h-16z" />
+    </group>
+</vector>

@@ -11,3 +11,4 @@ tests
 *.log
 *.tsbuildinfo
 README.md
+android

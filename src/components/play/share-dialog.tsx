@@ -6,6 +6,7 @@ import { useErrorMessage, useT, useToast } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { api } from "@/lib/api-client";
+import { nativeBridge } from "@/lib/native";
 
 interface ShareDialogProps {
   open: boolean;
@@ -49,6 +50,12 @@ export function ShareDialog({ open, onClose, roundId, courseName, token, onChang
 
   async function nativeShare() {
     if (!url) return;
+    // In the Android app the WebView has no Web Share; the app shares instead.
+    const bridge = nativeBridge();
+    if (bridge) {
+      bridge.share(t("play.share.shareText", { course: courseName }), url);
+      return;
+    }
     try {
       await navigator.share({ title: courseName, text: t("play.share.shareText", { course: courseName }), url });
     } catch {
@@ -56,7 +63,7 @@ export function ShareDialog({ open, onClose, roundId, courseName, token, onChang
     }
   }
 
-  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const canShare = nativeBridge() !== null || (typeof navigator !== "undefined" && typeof navigator.share === "function");
 
   return (
     <Dialog open={open} onClose={onClose} title={t("play.share.title")} description={t("play.share.lead")} size="sm">

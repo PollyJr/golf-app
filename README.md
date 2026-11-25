@@ -6,15 +6,22 @@ club events. The club reviews rounds, manages members, courses, events and
 news, and can put a live scoreboard on a screen in the clubhouse.
 
 Fairway is a multi-tenant web app (an installable PWA): one deployment serves
-any number of clubs, each strictly separated from the others.
+any number of clubs, each strictly separated from the others. An Android app
+(`android/`) wraps the same web app for phones.
 
 ## What is in it
 
 **For players** (`/app`)
 
-- Sign in with a player code or username and a PIN; new members can register
-  themselves with the club's join code (`/join/CODE`), optionally subject to
-  approval.
+- Sign in with an e-mail address (or player code or username) and a PIN; new
+  members register themselves with their e-mail address and the club's join
+  code (`/join/CODE`), optionally subject to approval. Members whose account
+  the club created add their e-mail address when they first sign in.
+- Every player has a personal QR code (`/p/TOKEN`). Scan a club mate's code
+  to put them straight into a new round or the round you are playing; every
+  round in its lobby or in play has its own code (`/r/TOKEN`) that a club
+  mate scans to join. The scanner works in the browser and in the Android
+  app; a link can also be pasted.
 - Start a round on any course, over 9 or 18 holes, as stroke play, Stableford
   or match play. Invite up to three club mates and add guests.
 - A live scorecard that everyone in the flight can fill in at the same time.
@@ -56,8 +63,9 @@ view of a shared round (`/live/TOKEN`).
 | Tests | Vitest: unit tests and integration tests against a real PostgreSQL |
 
 ```
+android/            the Android app (WebView shell, Kotlin)
 db/                 migrations (plain SQL), migrate / bootstrap / demo-seed scripts
-public/             service worker and icons
+public/             service worker, icons, the Android APK and assetlinks.json
 scripts/            build helpers
 src/app/            routes: pages and the REST API under /api
 src/components/     UI primitives (ui/), golf components, feature components
@@ -152,6 +160,43 @@ The integration tests need a database they may wipe. They use
 `TEST_DATABASE_URL` says otherwise, and recreate its `public` schema on every
 run.
 
+## Android app
+
+`android/` holds a small native Android app (Kotlin, no framework) that shows
+the deployed web app in a WebView and adds what a browser tab cannot:
+
+- QR-code links (`/p/…`, `/r/…`, `/join/…`, `/live/…`) open straight in the
+  app (Android App Links, verified through `public/.well-known/assetlinks.json`);
+- the QR scanner gets the camera through Android's permission dialog;
+- the live link of a round is shared through the Android share sheet
+  (`window.FairwayNative`, see `src/lib/native.ts`);
+- the session survives restarts; CSV and calendar downloads go to Downloads;
+- other websites, mail and phone links open in their own apps.
+
+The web app recognises the app by `FairwayAndroid/<version>` in the user agent.
+
+**Build the debug APK** (JDK 17+ and the Android SDK with platform 37):
+
+```bash
+cd android
+echo "sdk.dir=$ANDROID_HOME" > local.properties
+./gradlew assembleDebug        # → app/build/outputs/apk/debug/app-debug.apk
+cp app/build/outputs/apk/debug/app-debug.apk ../public/downloads/fairway-debug.apk
+```
+
+The web app serves that copy at `/downloads/fairway-debug.apk`; the sign-in
+and profile pages link to it. The app opens the URL in `fairwayBaseUrl`
+(`android/gradle.properties`); pass `-PfairwayBaseUrl=https://…` to build
+for another deployment, and add that host's fingerprint to its
+`assetlinks.json`.
+
+The APK is signed with `android/keystore/debug.keystore` (password
+`android`), which is in the repository on purpose: every build has the same
+signature, so a new APK installs over the previous one and the App Links
+fingerprint stays valid. It is a debug key: anyone can sign with it, so it
+must never sign a release that goes to the Play Store. On the phone, allow
+installing from your browser or file manager when Android asks.
+
 ## Deploying to Railway
 
 The repository contains a `Dockerfile` and `railway.json`. Railway builds the
@@ -198,7 +243,7 @@ Remove the variable again afterwards.
 - **Backups.** All state is in PostgreSQL. On Railway that is the volume of
   the Postgres service; use Railway's volume backups or `pg_dump` against
   the public URL.
-- **Adding a migration.** Add `db/migrations/007_what_it_does.sql` (the next
+- **Adding a migration.** Add `db/migrations/009_what_it_does.sql` (the next
   number). Never edit a migration that has been deployed. It runs
   automatically before the next deploy; a failing migration rolls back and
   stops the deploy, leaving the running version untouched. Run `npm test` to

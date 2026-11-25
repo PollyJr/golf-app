@@ -11,6 +11,9 @@ import { FormError, TextField } from "@/components/ui/form";
 import { api, ApiError } from "@/lib/api-client";
 import { PIN_PATTERN, suggestUsername, USERNAME_PATTERN } from "@/lib/validation";
 
+/** Enough to catch typos; the server validates properly. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /** Step one without a code in the link: ask for the club code. */
 export function JoinCodeForm() {
   const t = useT();
@@ -70,12 +73,17 @@ export function JoinForm({ joinCode, clubName }: JoinFormProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [usernameError, setUsernameError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [pendingCode, setPendingCode] = useState<string | null>(null);
 
   const digits = (value: string) => value.replace(/\D/g, "").slice(0, 12);
   const pinMismatch = pinRepeat.length > 0 && pin !== pinRepeat;
   const valid =
-    name.trim().length >= 2 && USERNAME_PATTERN.test(username) && PIN_PATTERN.test(pin) && pin === pinRepeat;
+    name.trim().length >= 2 &&
+    USERNAME_PATTERN.test(username) &&
+    PIN_PATTERN.test(pin) &&
+    pin === pinRepeat &&
+    EMAIL_PATTERN.test(email.trim());
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -86,13 +94,15 @@ export function JoinForm({ joinCode, clubName }: JoinFormProps) {
     try {
       const result = await api.post<{ status: "approved" | "pending"; code: string; redirectTo: string | null }>(
         "/api/auth/register",
-        { joinCode, displayName: name.trim(), username, pin, email: email.trim() || null },
+        { joinCode, displayName: name.trim(), username, pin, email: email.trim() },
       );
       if (result.redirectTo) window.location.assign(result.redirectTo);
       else setPendingCode(result.code);
     } catch (failure) {
       if (failure instanceof ApiError && (failure.code === "USERNAME_TAKEN" || failure.code === "INVALID_USERNAME")) {
         setUsernameError(errorMessage(failure));
+      } else if (failure instanceof ApiError && failure.code === "EMAIL_TAKEN") {
+        setEmailError(errorMessage(failure));
       } else {
         setError(errorMessage(failure));
       }
@@ -140,6 +150,20 @@ export function JoinForm({ joinCode, clubName }: JoinFormProps) {
         required
       />
       <TextField
+        label={t("auth.join.email")}
+        type="email"
+        value={email}
+        onChange={(event) => {
+          setEmailError("");
+          setEmail(event.target.value);
+        }}
+        hint={t("auth.join.emailHint")}
+        error={emailError || undefined}
+        autoComplete="email"
+        inputMode="email"
+        required
+      />
+      <TextField
         label={t("auth.join.username")}
         value={username}
         onChange={(event) => {
@@ -179,18 +203,7 @@ export function JoinForm({ joinCode, clubName }: JoinFormProps) {
           required
         />
       </div>
-      <TextField
-        label={
-          <>
-            {t("auth.join.email")} <span className="font-normal text-ink-3">({t("common.optional")})</span>
-          </>
-        }
-        type="email"
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        hint={t("auth.join.emailHint")}
-        autoComplete="email"
-      />
+
       <FormError>{error}</FormError>
       <Button type="submit" size="lg" block loading={busy} disabled={!valid}>
         {t("auth.join.submit")}

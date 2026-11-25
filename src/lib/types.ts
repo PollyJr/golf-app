@@ -176,6 +176,8 @@ export interface RoundSnapshot {
   /** Present for participants only; never part of the public snapshot. */
   viewer?: RoundViewer;
   shareToken?: string | null;
+  /** Behind the "scan to join" QR code; participants only, while the round is open. */
+  joinToken?: string | null;
 }
 
 export interface ActiveRoundSummary {
@@ -309,6 +311,7 @@ export interface NewsItem {
 
 export type NotificationKind =
   | "round_invite"
+  | "round_joined"
   | "round_started"
   | "round_approved"
   | "round_rejected"

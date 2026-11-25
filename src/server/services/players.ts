@@ -4,7 +4,7 @@ import { createSession, destroyAccountSessions, type ClubSession, type IssuedSes
 import { audit } from "../audit";
 import { db, many, maybeOne, one, transaction, type Db } from "../db";
 import { AppError, badRequest, conflict, forbidden, isUniqueViolation, notFound, tooManyRequests } from "../errors";
-import { friendlyCode, hashClientIp, hashIdentifier, hashSecret, randomPin, verifySecret } from "../security";
+import { friendlyCode, hashClientIp, hashIdentifier, hashSecret, randomPin, randomToken, verifySecret } from "../security";
 import { confirmGuess, reserveGuess } from "./auth";
 import { initialsOf } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/core";
@@ -89,6 +89,16 @@ function isUsernameViolation(error: unknown): boolean {
   return isUniqueViolation(error) && /username/.test((error as { constraint?: string }).constraint ?? "");
 }
 
+/** E-mail addresses are sign-in names too, unique across clubs. */
+function isEmailViolation(error: unknown): boolean {
+  return isUniqueViolation(error, "players_email_unique");
+}
+
+function normalizeEmail(email: string | null | undefined): string | null {
+  const trimmed = email?.trim().toLowerCase();
+  return trimmed ? trimmed : null;
+}
+
 async function assertUsernameIsNoCode(username: string, on: Db = db): Promise<void> {
   const clash = await maybeOne("SELECT 1 FROM players WHERE lower(code::text) = $1", [username], on);
   if (clash) throw conflict("USERNAME_TAKEN");
@@ -138,6 +148,53 @@ export async function changePin(session: ClubSession, currentPin: string, newPin
   });
 }
 
+/** Sets the address the player signs in with; `null` removes it. */
+export async function changeEmail(session: ClubSession, email: string | null, request: Request): Promise<string | null> {
+  const normalized = normalizeEmail(email);
+  try {
+    await db.query("UPDATE players SET email = $1, updated_at = now() WHERE id = $2 AND club_id = $3", [
+      normalized,
+      session.accountId,
+      session.clubId,
+    ]);
+  } catch (error) {
+    if (isEmailViolation(error)) throw conflict("EMAIL_TAKEN");
+    throw error;
+  }
+  await audit({ clubId: session.clubId, actor: session, action: "player.email_changed", entityType: "player", entityId: session.accountId, request });
+  return normalized;
+}
+
+export async function getOwnAccount(session: ClubSession): Promise<{ email: string | null; qrToken: string }> {
+  const row = await one<{ email: string | null; qr_token: string }>(
+    "SELECT email::text AS email, qr_token FROM players WHERE id = $1 AND club_id = $2",
+    [session.accountId, session.clubId],
+  );
+  return { email: row.email, qrToken: row.qr_token };
+}
+
+/** A new personal QR code: the old one stops working everywhere. */
+export async function regenerateQrToken(session: ClubSession): Promise<string> {
+  const row = await one<{ qr_token: string }>(
+    `UPDATE players SET qr_token = $3, updated_at = now() WHERE id = $1 AND club_id = $2 RETURNING qr_token`,
+    [session.accountId, session.clubId, randomToken(18)],
+  );
+  await audit({ clubId: session.clubId, actor: session, action: "player.qr_regenerated", entityType: "player", entityId: session.accountId });
+  return row.qr_token;
+}
+
+/** The club mate behind a scanned personal QR code. */
+export async function findPlayerByQrToken(clubId: string, qrToken: string, on: Db = db): Promise<PlayerSummary | null> {
+  const row = await maybeOne<SummaryRow>(
+    `SELECT id, display_name, username::text AS username, club_index
+       FROM players
+      WHERE club_id = $1 AND qr_token = $2 AND active AND registration_status = 'approved'`,
+    [clubId, qrToken],
+    on,
+  );
+  return row ? toSummary(row) : null;
+}
+
 export async function setPreferredLanguage(session: ClubSession, locale: Locale): Promise<void> {
   await db.query("UPDATE players SET preferred_language = $1 WHERE id = $2 AND club_id = $3", [
     locale,
@@ -177,7 +234,7 @@ async function insertPlayer(on: Db, clubId: string, player: NewPlayer): Promise<
           username,
           code,
           player.pinHash,
-          player.email || null,
+          normalizeEmail(player.email),
           player.mustChangePin,
           player.registrationStatus,
         ],
@@ -188,8 +245,9 @@ async function insertPlayer(on: Db, clubId: string, player: NewPlayer): Promise<
     } catch (error) {
       await on.query("ROLLBACK TO SAVEPOINT insert_player");
       if (!isUniqueViolation(error)) throw error;
-      // A chosen username that is taken is the caller's problem; a random
-      // code or generated username colliding is ours, so try again.
+      // A chosen username or e-mail address that is taken is the caller's
+      // problem; a random code or generated username colliding is ours.
+      if (isEmailViolation(error)) throw conflict("EMAIL_TAKEN");
       if (player.username && isUsernameViolation(error)) throw conflict("USERNAME_TAKEN");
     }
   }
@@ -359,11 +417,17 @@ export async function updatePlayer(
   changes: { displayName: string; email: string | null },
 ): Promise<void> {
   const name = changes.displayName.trim();
-  const updated = await db.query(
-    `UPDATE players SET display_name = $3, initials = $4, email = $5, updated_at = now()
-      WHERE club_id = $1 AND id = $2`,
-    [session.clubId, playerId, name, initialsOf(name), changes.email || null],
-  );
+  let updated;
+  try {
+    updated = await db.query(
+      `UPDATE players SET display_name = $3, initials = $4, email = $5, updated_at = now()
+        WHERE club_id = $1 AND id = $2`,
+      [session.clubId, playerId, name, initialsOf(name), normalizeEmail(changes.email)],
+    );
+  } catch (error) {
+    if (isEmailViolation(error)) throw conflict("EMAIL_TAKEN");
+    throw error;
+  }
   if (updated.rowCount === 0) throw notFound("PLAYER_NOT_FOUND");
   await audit({ clubId: session.clubId, actor: session, action: "player.updated", entityType: "player", entityId: playerId });
 }

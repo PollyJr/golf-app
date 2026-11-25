@@ -110,14 +110,21 @@ const PLAYER_LOOKUP = `
     JOIN clubs c ON c.id = p.club_id AND c.status IN ('trial', 'active')
    WHERE p.active`;
 
-/** A player code always wins; a username only counts when no code matches. */
+/**
+ * Players sign in with their e-mail address, player code or username. An
+ * e-mail address is recognised by its @; otherwise a player code wins over a
+ * username, which only counts when no code matches.
+ */
 async function findPlayer(identifier: string): Promise<PlayerRow | null> {
+  if (identifier.includes("@")) {
+    return maybeOne<PlayerRow>(`${PLAYER_LOOKUP} AND p.email IS NOT NULL AND lower(p.email::text) = $1`, [identifier]);
+  }
   const byCode = await maybeOne<PlayerRow>(`${PLAYER_LOOKUP} AND lower(p.code::text) = $1`, [identifier]);
   if (byCode) return byCode;
   return maybeOne<PlayerRow>(`${PLAYER_LOOKUP} AND lower(p.username::text) = $1`, [identifier]);
 }
 
-/** Players sign in with their player code or username, plus their PIN. */
+/** Players sign in with their e-mail address, player code or username, plus their PIN. */
 export async function signInPlayer(identifier: string, pin: string, request: Request): Promise<SignInResult> {
   const normalized = identifier.trim().toLowerCase().replace(/^@/, "");
   const attemptId = await reserveGuess(`player:${normalized}`, request);

@@ -1,16 +1,17 @@
 import { redirect } from "next/navigation";
-import { PinForm } from "@/components/auth/pin-form";
+import { WelcomeForm } from "@/components/auth/welcome-form";
 import { Wordmark } from "@/components/brand";
 import { SignOutButton } from "@/components/preferences";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { requirePlayer } from "@/server/auth/guards";
 import { getT } from "@/server/i18n";
+import { getOwnAccount } from "@/server/services/players";
 
 /** First sign-in with a PIN issued by the club: the player picks their own. */
 export default async function WelcomePage() {
   const session = await requirePlayer({ allowPinChange: true });
   if (!session.user.mustChangeSecret) redirect("/app");
-  const { t } = await getT();
+  const [{ t }, account] = await Promise.all([getT(), getOwnAccount(session)]);
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-5 py-10">
@@ -24,17 +25,7 @@ export default async function WelcomePage() {
         <p className="mt-3 text-ink-2">{t("auth.welcome.lead")}</p>
       </div>
       <Card padding="lg">
-        <PinForm
-          redirectTo="/app"
-          labels={{
-            current: t("auth.welcome.current"),
-            next: t("auth.welcome.next"),
-            repeat: t("auth.welcome.repeat"),
-            submit: t("auth.welcome.submit"),
-            mismatch: t("auth.join.pinMismatch"),
-            done: t("auth.welcome.done"),
-          }}
-        />
+        <WelcomeForm initialEmail={account.email} />
       </Card>
     </div>
   );
