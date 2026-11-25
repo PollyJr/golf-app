@@ -122,6 +122,8 @@ export const admin = {
     name: "Naam",
     namePlaceholder: "Voor- en achternaam",
     email: "E-mailadres",
+    username: "Gebruikersnaam",
+    usernameHint: "Laat leeg om er een te maken op basis van de naam.",
     create: "Account aanmaken",
     createdTitle: "Account aangemaakt",
     bulkTitle: "Meerdere spelers toevoegen",

@@ -79,6 +79,31 @@ describe("player accounts", () => {
     await signInPlayer("wendy.w", "2222", fakeRequest("198.51.100.5"));
   });
 
+  it("lets staff choose the username and e-mail of a member", async () => {
+    const [issued] = await createPlayers(
+      club.owner,
+      [{ displayName: "Sem Tuu", email: "Sem.Tuu@Example.test", username: "Seytuu" }],
+      fakeRequest(),
+    );
+    expect(issued.username).toBe("seytuu");
+    expect((await signInPlayer("sem.tuu@example.test", issued.pin, fakeRequest("198.51.100.20"))).mustChangeSecret).toBe(true);
+    expect((await signInPlayer("seytuu", issued.pin, fakeRequest("198.51.100.20"))).mustChangeSecret).toBe(true);
+
+    await expect(createPlayers(club.owner, [{ displayName: "Tweede Sem", username: "seytuu" }], fakeRequest())).rejects.toThrow("USERNAME_TAKEN");
+    await expect(createPlayers(club.owner, [{ displayName: "Code Kaper", username: issued.code }], fakeRequest())).rejects.toThrow("USERNAME_TAKEN");
+    await expect(createPlayers(club.owner, [{ displayName: "Te Kort", username: "x" }], fakeRequest())).rejects.toThrow("INVALID_USERNAME");
+
+    // Editing: a new username, the e-mail added later; leaving it out keeps the username.
+    const mini = await createPlayer(club, "Mini Muis");
+    await updatePlayer(club.owner, mini.accountId, { displayName: "Mini Muis", email: "minimuis77@example.test", username: "minimuis" });
+    await updatePlayer(club.owner, mini.accountId, { displayName: "Mini Muis", email: "minimuis77@example.test" });
+    await signInPlayer("minimuis", "1234", fakeRequest("198.51.100.21"));
+    await signInPlayer("minimuis77@example.test", "1234", fakeRequest("198.51.100.21"));
+    await expect(
+      updatePlayer(club.owner, mini.accountId, { displayName: "Mini Muis", email: null, username: "seytuu" }),
+    ).rejects.toThrow("USERNAME_TAKEN");
+  });
+
   it("lets staff edit, deactivate and reset", async () => {
     const player = await createPlayer(club, "Bea Beheer", "5555");
     await updatePlayer(club.owner, player.accountId, { displayName: "Bea van Beheer", email: "bea@example.test" });

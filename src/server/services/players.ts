@@ -385,7 +385,7 @@ export async function countPendingRegistrations(clubId: string): Promise<number>
  */
 export async function createPlayers(
   session: ClubSession,
-  players: ReadonlyArray<{ displayName: string; email?: string | null }>,
+  players: ReadonlyArray<{ displayName: string; email?: string | null; username?: string | null }>,
   request: Request,
 ): Promise<IssuedCredentials[]> {
   const prepared = await Promise.all(
@@ -397,9 +397,16 @@ export async function createPlayers(
   return transaction(async (tx) => {
     const issued: IssuedCredentials[] = [];
     for (const player of prepared) {
+      // Staff may choose the sign-in name; otherwise one is made from the name.
+      const username = player.username?.trim().toLowerCase() || undefined;
+      if (username) {
+        if (!USERNAME_PATTERN.test(username)) throw badRequest("INVALID_USERNAME");
+        await assertUsernameIsNoCode(username, tx);
+      }
       const created = await insertPlayer(tx, session.clubId, {
         displayName: player.displayName,
         email: player.email,
+        username,
         pinHash: player.pinHash,
         mustChangePin: true,
         registrationStatus: "approved",
@@ -414,18 +421,25 @@ export async function createPlayers(
 export async function updatePlayer(
   session: ClubSession,
   playerId: string,
-  changes: { displayName: string; email: string | null },
+  changes: { displayName: string; email: string | null; username?: string | null },
 ): Promise<void> {
   const name = changes.displayName.trim();
+  // Without a username the current one stays.
+  const username = changes.username?.trim().toLowerCase() || null;
+  if (username) {
+    if (!USERNAME_PATTERN.test(username)) throw badRequest("INVALID_USERNAME");
+    await assertUsernameIsNoCode(username);
+  }
   let updated;
   try {
     updated = await db.query(
-      `UPDATE players SET display_name = $3, initials = $4, email = $5, updated_at = now()
+      `UPDATE players SET display_name = $3, initials = $4, email = $5, username = COALESCE($6, username), updated_at = now()
         WHERE club_id = $1 AND id = $2`,
-      [session.clubId, playerId, name, initialsOf(name), normalizeEmail(changes.email)],
+      [session.clubId, playerId, name, initialsOf(name), normalizeEmail(changes.email), username],
     );
   } catch (error) {
     if (isEmailViolation(error)) throw conflict("EMAIL_TAKEN");
+    if (isUsernameViolation(error)) throw conflict("USERNAME_TAKEN");
     throw error;
   }
   if (updated.rowCount === 0) throw notFound("PLAYER_NOT_FOUND");

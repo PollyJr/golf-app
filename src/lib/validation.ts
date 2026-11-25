@@ -52,6 +52,12 @@ const optionalEmail = z
   .nullish()
   .transform((value) => value || null);
 
+/** A sign-in name staff choose for a member; empty keeps the generated or current one. */
+const optionalUsername = z
+  .union([z.literal(""), z.string().trim().toLowerCase().regex(USERNAME_PATTERN, "INVALID_USERNAME")])
+  .nullish()
+  .transform((value) => value || null);
+
 export const pinSchema = z.string().regex(PIN_PATTERN);
 export const passwordSchema = z.string().min(MIN_PASSWORD_LENGTH).max(256);
 export const localeSchema = z.enum(LOCALES);
@@ -156,6 +162,7 @@ export const leaderboardQuerySchema = z.object({
 export const newPlayerSchema = z.object({
   displayName: trimmed(2, 80),
   email: optionalEmail,
+  username: optionalUsername,
 });
 
 export const bulkPlayersSchema = z.object({
@@ -163,7 +170,7 @@ export const bulkPlayersSchema = z.object({
 });
 
 export const playerActionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("update"), displayName: trimmed(2, 80), email: optionalEmail }),
+  z.object({ action: z.literal("update"), displayName: trimmed(2, 80), email: optionalEmail, username: optionalUsername }),
   z.object({ action: z.literal("activate") }),
   z.object({ action: z.literal("deactivate") }),
   z.object({ action: z.literal("reset-pin") }),

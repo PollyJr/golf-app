@@ -5,7 +5,7 @@ import { playerActionSchema } from "@/lib/validation";
 export const PATCH = route({ access: "staff", params: idParams, body: playerActionSchema }, async ({ session, params, body }) => {
   switch (body.action) {
     case "update":
-      await updatePlayer(session, params.id, { displayName: body.displayName, email: body.email });
+      await updatePlayer(session, params.id, { displayName: body.displayName, email: body.email, username: body.username });
       return { ok: true };
     case "activate":
       await setPlayerActive(session, params.id, true);

@@ -125,6 +125,8 @@ export const admin: MessageShape<typeof source> = {
     name: "Name",
     namePlaceholder: "First and last name",
     email: "E-mail address",
+    username: "Username",
+    usernameHint: "Leave empty to make one from the name.",
     create: "Create account",
     createdTitle: "Account created",
     bulkTitle: "Add several players",

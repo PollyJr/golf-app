@@ -16,6 +16,7 @@ import { api } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/format";
 import { formatClubIndex } from "@/lib/golf/club-index";
 import type { AdminPlayer, IssuedCredentials } from "@/lib/types";
+import { USERNAME_PATTERN } from "@/lib/validation";
 
 type Filter = "all" | "active" | "inactive" | "pending";
 
@@ -304,15 +305,23 @@ function NewPlayerDialog({ open, onClose, onCreated }: { open: boolean; onClose:
   const { run, busy } = useAction();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const chosen = username.trim().toLowerCase();
+  const usernameInvalid = chosen !== "" && !USERNAME_PATTERN.test(chosen);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     const result = await run(() =>
-      api.post<{ credentials: IssuedCredentials }>("/api/admin/players", { displayName: name.trim(), email: email.trim() || null }),
+      api.post<{ credentials: IssuedCredentials }>("/api/admin/players", {
+        displayName: name.trim(),
+        email: email.trim() || null,
+        username: chosen || null,
+      }),
     );
     if (!result.ok) return;
     setName("");
     setEmail("");
+    setUsername("");
     onCreated(result.data.credentials);
   }
 
@@ -327,7 +336,7 @@ function NewPlayerDialog({ open, onClose, onCreated }: { open: boolean; onClose:
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             {t("common.cancel")}
           </Button>
-          <Button type="submit" form="new-player-form" loading={busy} disabled={name.trim().length < 2}>
+          <Button type="submit" form="new-player-form" loading={busy} disabled={name.trim().length < 2 || usernameInvalid}>
             {t("admin.players.create")}
           </Button>
         </>
@@ -354,6 +363,21 @@ function NewPlayerDialog({ open, onClose, onCreated }: { open: boolean; onClose:
           onChange={(event) => setEmail(event.target.value)}
           maxLength={254}
           autoComplete="off"
+        />
+        <TextField
+          label={
+            <>
+              {t("admin.players.username")} <span className="font-normal text-ink-3">({t("common.optional")})</span>
+            </>
+          }
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          hint={t("admin.players.usernameHint")}
+          error={usernameInvalid ? t("common.errors.INVALID_USERNAME") : undefined}
+          maxLength={30}
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
         />
       </form>
     </Dialog>
@@ -421,11 +445,20 @@ function EditPlayerDialog({ player, onClose }: { player: AdminPlayer; onClose: (
   const { run, busy } = useAction();
   const [name, setName] = useState(player.name);
   const [email, setEmail] = useState(player.email ?? "");
+  const [username, setUsername] = useState(player.username);
+  const chosen = username.trim().toLowerCase();
+  const usernameInvalid = !USERNAME_PATTERN.test(chosen);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     const result = await run(
-      () => api.patch(`/api/admin/players/${player.id}`, { action: "update", displayName: name.trim(), email: email.trim() || null }),
+      () =>
+        api.patch(`/api/admin/players/${player.id}`, {
+          action: "update",
+          displayName: name.trim(),
+          email: email.trim() || null,
+          username: chosen,
+        }),
       { success: t("admin.players.saved") },
     );
     if (result.ok) onClose();
@@ -442,7 +475,7 @@ function EditPlayerDialog({ player, onClose }: { player: AdminPlayer; onClose: (
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             {t("common.cancel")}
           </Button>
-          <Button type="submit" form="edit-player-form" loading={busy} disabled={name.trim().length < 2}>
+          <Button type="submit" form="edit-player-form" loading={busy} disabled={name.trim().length < 2 || usernameInvalid}>
             {t("common.save")}
           </Button>
         </>
@@ -460,6 +493,16 @@ function EditPlayerDialog({ player, onClose }: { player: AdminPlayer; onClose: (
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           maxLength={254}
+        />
+        <TextField
+          label={t("admin.players.username")}
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          error={usernameInvalid ? t("common.errors.INVALID_USERNAME") : undefined}
+          maxLength={30}
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
         />
       </form>
     </Dialog>
