@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Fairway">
+  <rect width="512" height="512" rx="116" fill="#0f3b2a"/>
+  <g transform="translate(79.5 86) scale(7.4)" fill="none" stroke="#c9f04b" stroke-width="3.6" stroke-linecap="round">
+    <path d="M8 36c8-6 17-6.5 26-2.2 2.4 1.1 4.4 1.2 6 .5"/>
+    <path d="M20 36.5V10"/>
+    <path d="M22.5 11h16l-4.8 5.25 4.8 5.25h-16z" fill="#c9f04b" stroke="none"/>
+  </g>
+</svg>

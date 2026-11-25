@@ -44,6 +44,8 @@ export interface SignInResult {
   issued: IssuedSession;
   role: AccountRole;
   mustChangeSecret: boolean;
+  /** Players only: the interface language they chose earlier. */
+  preferredLanguage: string | null;
 }
 
 const invalidCredentials = () => new AppError("INVALID_CREDENTIALS", 401);
@@ -64,8 +66,10 @@ export async function signInPlayer(identifier: string, pin: string, request: Req
     locked: boolean | null;
     must_change_pin: boolean;
     registration_status: string;
+    preferred_language: string | null;
   }>(
-    `SELECT p.id, p.club_id, p.pin_hash, p.locked_until > now() AS locked, p.must_change_pin, p.registration_status
+    `SELECT p.id, p.club_id, p.pin_hash, p.locked_until > now() AS locked, p.must_change_pin, p.registration_status,
+            p.preferred_language
        FROM players p
        JOIN clubs c ON c.id = p.club_id AND c.status IN ('trial', 'active')
       WHERE p.active AND (lower(p.code::text) = $1 OR lower(p.username::text) = $1)
@@ -96,7 +100,7 @@ export async function signInPlayer(identifier: string, pin: string, request: Req
 
   await db.query("UPDATE players SET failed_attempts = 0, locked_until = NULL, last_login_at = now() WHERE id = $1", [player.id]);
   const issued = await createSession({ role: "player", accountId: player.id, clubId: player.club_id }, request);
-  return { issued, role: "player", mustChangeSecret: player.must_change_pin };
+  return { issued, role: "player", mustChangeSecret: player.must_change_pin, preferredLanguage: player.preferred_language };
 }
 
 /** Club staff and platform administrators sign in with e-mail and password. */
@@ -142,5 +146,5 @@ export async function signInAdmin(email: string, password: string, request: Requ
   await db.query("UPDATE admin_accounts SET failed_attempts = 0, locked_until = NULL, last_login_at = now() WHERE id = $1", [admin.id]);
   const issued = await createSession({ role: admin.role, accountId: admin.id, clubId: admin.club_id }, request);
   await audit({ clubId: admin.club_id, actor: { role: admin.role, accountId: admin.id }, action: "admin.signed_in", entityType: "admin", entityId: admin.id, request });
-  return { issued, role: admin.role, mustChangeSecret: admin.must_change_password };
+  return { issued, role: admin.role, mustChangeSecret: admin.must_change_password, preferredLanguage: null };
 }

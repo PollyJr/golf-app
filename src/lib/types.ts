@@ -163,6 +163,8 @@ export interface RoundSnapshot {
   starterId: string;
   starterName: string;
   clubName: string;
+  /** The club's colours, so public pages can wear them without a session. */
+  theme: { primaryColor: string; accentColor: string };
   timeZone: string;
   createdAt: string;
   startedAt: string | null;

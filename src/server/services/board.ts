@@ -1,6 +1,6 @@
 import "server-only";
 
-import { many } from "../db";
+import { many, maybeOne } from "../db";
 import { getClubByBoardToken } from "./clubs";
 import { listEvents } from "./events";
 import { getAces, getLeaderboard } from "./leaderboards";
@@ -36,6 +36,8 @@ export interface BoardData {
   announcements: NewsItem[];
   aces: AceEntry[];
   holeCount: HoleCount;
+  /** For the "join in" QR code; `null` when the club does not take sign-ups. */
+  joinCode: string | null;
 }
 
 export async function listLiveFlights(clubId: string, locale: Locale): Promise<LiveFlight[]> {
@@ -96,7 +98,7 @@ export async function getBoard(boardToken: string, locale: Locale): Promise<Boar
   const ranking = (period: "day" | "week" | "month") =>
     getLeaderboard(club.id, { period, holeCount, category: "best" }, locale).then((rows) => rows.slice(0, 10));
 
-  const [live, today, week, month, events, announcements, aces] = await Promise.all([
+  const [live, today, week, month, events, announcements, aces, join] = await Promise.all([
     listLiveFlights(club.id, locale),
     ranking("day"),
     ranking("week"),
@@ -104,7 +106,20 @@ export async function getBoard(boardToken: string, locale: Locale): Promise<Boar
     listEvents(club.id, locale, { scope: "upcoming", limit: 4 }),
     listNews(club.id, locale, { kinds: ["announcement", "news"], limit: 3 }),
     getAces(club.id, locale, 3),
+    maybeOne<{ join_code: string }>("SELECT join_code FROM clubs WHERE id = $1 AND self_registration <> 'closed'", [club.id]),
   ]);
 
-  return { club, generatedAt: new Date().toISOString(), live, today, week, month, events, announcements, aces, holeCount };
+  return {
+    club,
+    generatedAt: new Date().toISOString(),
+    live,
+    today,
+    week,
+    month,
+    events,
+    announcements,
+    aces,
+    holeCount,
+    joinCode: join?.join_code ?? null,
+  };
 }

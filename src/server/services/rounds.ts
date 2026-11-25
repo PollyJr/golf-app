@@ -47,6 +47,8 @@ interface RoundBaseRow {
   starter_player_id: string;
   starter_name: string;
   club_name: string;
+  primary_color: string;
+  club_accent_color: string;
   timezone: string;
   created_at: Date;
   started_at: Date | null;
@@ -66,6 +68,7 @@ const ROUND_BASE = `
   SELECT r.id, r.club_id, r.revision, r.status, r.format, r.track_putts, r.hole_count,
          r.starter_player_id, starter.display_name AS starter_name,
          club.name AS club_name, club.timezone,
+         club.primary_color, club.accent_color AS club_accent_color,
          r.created_at, r.started_at, r.completed_at, r.rejection_reason, r.share_token,
          r.course_id, c.name AS course_name, c.accent_color,
          r.tee_set_id, t.name AS tee_name,
@@ -147,6 +150,7 @@ async function buildSnapshot(base: RoundBaseRow, locale: Locale, on: Db = db): P
     starterId: base.starter_player_id,
     starterName: base.starter_name,
     clubName: base.club_name,
+    theme: { primaryColor: base.primary_color, accentColor: base.club_accent_color },
     timeZone: base.timezone,
     createdAt: base.created_at.toISOString(),
     startedAt: base.started_at?.toISOString() ?? null,

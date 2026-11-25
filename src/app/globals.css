@@ -1,0 +1,330 @@
+@import "tailwindcss";
+
+/*
+ * Fairway design tokens.
+ *
+ * The look is "scoreboard on scorecard paper": a warm paper ground, deep club
+ * green, one loud accent, and a single variable typeface (Archivo) used wide
+ * for headings and condensed for labels and numerals.
+ *
+ * Components only ever use the semantic tokens below, so light, dark and club
+ * colours all come from this file plus two variables set per club
+ * (--brand, --accent; see src/lib/theme.ts).
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Club colours; overridden inline per club. */
+  --brand: #0f3b2a;
+  --brand-ink: #f4f7ee;
+  --accent: #c9f04b;
+  --accent-ink: #10291d;
+
+  --paper: #f3f0e6;
+  --surface: #fffdf8;
+  --well: #f7f4ea;
+  --ink: #14211a;
+  --ink-2: #47554c;
+  --ink-3: #6f7b73;
+  --line: #ddd8c7;
+  --line-strong: #c5bfaa;
+
+  /* Brand used as text or icon colour on a surface. */
+  --brand-fg: var(--brand);
+  --brand-soft: color-mix(in oklab, var(--brand) 9%, var(--surface));
+
+  --under: #1b7447;
+  --under-soft: #dcefe2;
+  --over: #b04a2f;
+  --over-soft: #f6e1d8;
+  --gold: #a87814;
+  --gold-soft: #f6ead0;
+  --info: #2b6692;
+  --info-soft: #dde9f3;
+  --danger: #b3261e;
+  --danger-soft: #f9dedc;
+
+  /* Chart marks. Checked with the dataviz palette validator against --surface
+     for lightness, chroma, contrast and colour-vision-deficiency separation of
+     neighbouring steps; change them only together with a new validation run. */
+  --chart-line: #2a78d6;
+  --chart-under: #1b7447;
+  --chart-neutral: #b3b0a1;
+  --chart-over-1: #d97c55;
+  --chart-over-2: #9c3a20;
+
+  --shadow-card: 0 1px 0 rgb(20 33 26 / 0.04), 0 8px 24px -12px rgb(20 33 26 / 0.12);
+  --shadow-pop: 0 2px 4px rgb(20 33 26 / 0.06), 0 24px 48px -16px rgb(20 33 26 / 0.28);
+}
+
+/* Dark theme: explicit choice, or the system setting when nothing was chosen. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0b1410;
+  --surface: #121d17;
+  --well: #17241d;
+  --ink: #ecf1e8;
+  --ink-2: #b4c0b7;
+  --ink-3: #84928a;
+  --line: #24352b;
+  --line-strong: #34493c;
+  --brand-fg: color-mix(in oklab, var(--accent) 78%, white);
+  --brand-soft: color-mix(in oklab, var(--brand) 55%, var(--surface));
+  --under: #6fd29c;
+  --under-soft: #173527;
+  --over: #f0a084;
+  --over-soft: #3d2118;
+  --gold: #e6bf63;
+  --gold-soft: #3a2f14;
+  --info: #8cc0e6;
+  --info-soft: #172c3b;
+  --danger: #f2a39d;
+  --danger-soft: #45201d;
+  --chart-line: #3987e5;
+  --chart-under: #45a271;
+  --chart-neutral: #55635a;
+  --chart-over-1: #a34529;
+  --chart-over-2: #d9764f;
+  --shadow-card: 0 1px 0 rgb(0 0 0 / 0.2), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --shadow-pop: 0 24px 48px -16px rgb(0 0 0 / 0.8);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #0b1410;
+    --surface: #121d17;
+    --well: #17241d;
+    --ink: #ecf1e8;
+    --ink-2: #b4c0b7;
+    --ink-3: #84928a;
+    --line: #24352b;
+    --line-strong: #34493c;
+    --brand-fg: color-mix(in oklab, var(--accent) 78%, white);
+    --brand-soft: color-mix(in oklab, var(--brand) 55%, var(--surface));
+    --under: #6fd29c;
+    --under-soft: #173527;
+    --over: #f0a084;
+    --over-soft: #3d2118;
+    --gold: #e6bf63;
+    --gold-soft: #3a2f14;
+    --info: #8cc0e6;
+    --info-soft: #172c3b;
+    --danger: #f2a39d;
+    --danger-soft: #45201d;
+    --chart-line: #3987e5;
+    --chart-under: #45a271;
+    --chart-neutral: #55635a;
+    --chart-over-1: #a34529;
+    --chart-over-2: #d9764f;
+    --shadow-card: 0 1px 0 rgb(0 0 0 / 0.2), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+    --shadow-pop: 0 24px 48px -16px rgb(0 0 0 / 0.8);
+  }
+}
+
+@theme inline {
+  --font-sans: "Archivo Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-well: var(--well);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-under: var(--under);
+  --color-under-soft: var(--under-soft);
+  --color-over: var(--over);
+  --color-over-soft: var(--over-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+
+  --radius-card: 1.125rem;
+  --radius-control: 0.8rem;
+
+  --animate-pop: pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  --animate-rise: rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-live: live 1.8s ease-out infinite;
+
+  @keyframes pop {
+    0% {
+      transform: scale(0.82);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes live {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in oklab, currentColor 55%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 9px transparent;
+    }
+  }
+}
+
+/* ------------------------------------------------------------ typography -- */
+
+/* Wide and heavy: page titles and anything that should feel like a headline. */
+@utility font-display {
+  font-stretch: 112%;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+}
+
+/* Condensed capitals: eyebrows, table headers, tags. */
+@utility font-label {
+  font-stretch: 80%;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+/* Condensed, heavy, tabular: every number that is a score. */
+@utility font-score {
+  font-stretch: 72%;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The ruled lines of a paper scorecard, for hero panels. */
+@utility bg-ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 27px,
+    color-mix(in oklab, currentColor 9%, transparent) 27px,
+    color-mix(in oklab, currentColor 9%, transparent) 28px
+  );
+}
+
+@utility safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+}
+
+@utility safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ base -- */
+
+@layer base {
+  html {
+    background: var(--paper);
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand-fg);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  button,
+  [role="button"],
+  a {
+    touch-action: manipulation;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+
+  /* Number inputs are steppers in this app; hide the browser spinners. */
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  dialog {
+    color: inherit;
+  }
+  dialog::backdrop {
+    background: rgb(9 18 13 / 0.55);
+    backdrop-filter: blur(3px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}

@@ -1,0 +1,33 @@
+import type { MessageShape } from "../../core";
+import type { board as source } from "../nl/board";
+
+export const board: MessageShape<typeof source> = {
+  title: "Clubhouse",
+  onCourse: "On the course now",
+  nobodyOnCourse: "Nobody is on the course at the moment.",
+  nobodyOnCourseLead: "Start a round in the app and you will appear here.",
+  moreFlights: { one: "and {count} more flight", other: "and {count} more flights" },
+  ranking: "Rankings",
+  today: "Today",
+  week: "This week",
+  month: "This month",
+  emptyRanking: "No rounds yet.",
+  emptyRankingLead: "The first approved round opens the ranking.",
+  upcoming: "Calendar",
+  noEvents: "No events planned.",
+  full: "Full",
+  announcements: "From the club",
+  aces: "Hole-in-one club",
+  aceLine: "Hole {hole} · {distance} m",
+  thru: "thru {count}",
+  notStarted: "start",
+  finished: "done",
+  holesNote: "Best round over {count} holes",
+  join: "Join in",
+  joinLead: "Scan and create your account",
+  openApp: "Join in at {host}",
+  updated: "Updated {time}",
+  reconnecting: "Reconnecting…",
+  unavailableTitle: "This screen is not available",
+  unavailableLead: "The link is no longer valid. Create a new one in club management.",
+};

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fairway
+          POSTGRES_PASSWORD: fairway
+          POSTGRES_DB: fairway_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fairway -d fairway_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # The integration tests recreate the public schema of this database.
+      TEST_DATABASE_URL: postgres://fairway:fairway@localhost:5432/fairway_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Route and page types (next-env.d.ts, .next/types) are generated, not committed.
+      - name: Generate Next.js types
+        run: npx next typegen
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # The build needs no database or secrets: every page is rendered on request.
+      - name: Build
+        run: npm run build
