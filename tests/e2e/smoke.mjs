@@ -8,7 +8,7 @@
  * Needs a running app with the demo seed (`npm run db:seed`):
  *   BASE_URL=http://localhost:3000 npm run e2e
  */
-const { chromium } = require("playwright");
+import { chromium } from "playwright";
 
 const BASE = process.env.BASE_URL || "http://localhost:3000";
 const OWNER = { email: process.env.E2E_OWNER_EMAIL || "owner@fairway.test", password: process.env.E2E_OWNER_PASSWORD || "fairway-owner-123" };

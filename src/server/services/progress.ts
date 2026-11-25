@@ -98,11 +98,20 @@ export async function refreshClubIndex(on: Db, clubId: string, playerId: string)
   return index;
 }
 
-/** Awards achievements the player has earned but not yet received. */
+/**
+ * Brings a player's stored achievements in line with their approved rounds:
+ * new ones are awarded, and ones that no longer hold (because a round was
+ * rejected or deleted afterwards) are taken back.
+ */
 export async function awardAchievements(on: Db, clubId: string, playerId: string, announce = true): Promise<AchievementKey[]> {
   const earned = evaluateAchievements(await loadPlayerRounds(on, clubId, playerId));
-  if (earned.size === 0) return [];
   const keys = [...earned.keys()];
+  await on.query("DELETE FROM player_achievements WHERE club_id = $1 AND player_id = $2 AND NOT (key = ANY($3::text[]))", [
+    clubId,
+    playerId,
+    keys,
+  ]);
+  if (keys.length === 0) return [];
   const inserted = await many<{ key: string }>(
     `INSERT INTO player_achievements (club_id, player_id, key, round_id)
      SELECT $1, $2, item.key, item.round_id

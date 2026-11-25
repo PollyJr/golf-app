@@ -17,7 +17,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "node tests/e2e/smoke.cjs"
+    "e2e": "node tests/e2e/smoke.mjs"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",

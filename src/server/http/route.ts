@@ -29,6 +29,11 @@ interface RouteConfig<A extends Access, B extends Schema | undefined, Q extends 
   body?: B;
   query?: Q;
   params?: P;
+  /**
+   * An account that still has to replace its one-time PIN or password may call
+   * this route. Everything else is refused until the secret has been changed.
+   */
+  allowBeforeSecretChange?: boolean;
 }
 
 type NextRouteHandler = (request: Request, context: { params: Promise<Record<string, string | string[] | undefined>> }) => Promise<Response>;
@@ -83,6 +88,7 @@ export function route<
         if (!session) throw unauthenticated();
         if (!roleAllowed(session.role, config.access)) throw forbidden();
         if (config.access !== "platform" && (!session.clubId || !session.club)) throw forbidden();
+        if (session.user.mustChangeSecret && !config.allowBeforeSecretChange) throw forbidden("SECRET_CHANGE_REQUIRED");
         if (mutation) await verifyMutation(request, session);
       } else if (mutation) {
         assertSameOrigin(request);

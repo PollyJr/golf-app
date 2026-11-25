@@ -66,7 +66,13 @@ export async function getCourse(clubId: string, courseId: string, locale: Locale
   return row ? toCourse(row, locale) : null;
 }
 
-/** Creates a course, or replaces the layout of an existing one. */
+/**
+ * Creates a course, or replaces the layout of an existing one.
+ *
+ * Staff edit texts in the club's language only, so a save replaces the stored
+ * text outright; other languages fall back to it instead of keeping a stale
+ * translation of the old name.
+ */
 export async function saveCourse(session: ClubSession, courseId: string | null, input: CourseBody): Promise<string> {
   const language = session.club.defaultLanguage;
   const clubId = session.clubId;
@@ -91,13 +97,13 @@ export async function saveCourse(session: ClubSession, courseId: string | null, 
       teeId = existing.tee_id;
       await tx.query(
         `UPDATE courses
-            SET name = COALESCE(name, '{}'::jsonb) || jsonb_build_object($3::text, $4::text),
-                description = COALESCE(description, '{}'::jsonb) || jsonb_build_object($3::text, $5::text),
+            SET name = jsonb_build_object($3::text, $4::text),
+                description = jsonb_build_object($3::text, $5::text),
                 hole_count = $6, accent_color = $7, updated_at = now()
           WHERE id = $1 AND club_id = $2`,
         [id, clubId, language, input.name, input.description, input.holeCount, input.accent],
       );
-      await tx.query("UPDATE tee_sets SET name = COALESCE(name, '{}'::jsonb) || jsonb_build_object($2::text, $3::text) WHERE id = $1", [
+      await tx.query("UPDATE tee_sets SET name = jsonb_build_object($2::text, $3::text) WHERE id = $1", [
         teeId,
         language,
         input.teeName,

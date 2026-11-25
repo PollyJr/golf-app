@@ -4,6 +4,6 @@ import { eventStream } from "@/server/realtime/sse";
 
 export const dynamic = "force-dynamic";
 
-export const GET = route({ access: "player" }, async ({ session, request }) =>
+export const GET = route({ access: "player", allowBeforeSecretChange: true }, async ({ session, request }) =>
   eventStream(request, [topics.player(session.accountId)]),
 );

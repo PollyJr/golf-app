@@ -5,6 +5,7 @@ import { audit } from "../audit";
 import { db, many, maybeOne, one, transaction, type Db } from "../db";
 import { AppError, badRequest, conflict, forbidden, isUniqueViolation, notFound, tooManyRequests } from "../errors";
 import { friendlyCode, hashClientIp, hashIdentifier, hashSecret, randomPin, verifySecret } from "../security";
+import { confirmGuess, reserveGuess } from "./auth";
 import { initialsOf } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/core";
 import type { AdminPlayer, IssuedCredentials, PlayerSummary, RegistrationStatus } from "@/lib/types";
@@ -83,11 +84,22 @@ export async function recentPartners(clubId: string, playerId: string, limit = 6
   return rows.map(toSummary);
 }
 
+/** Usernames are sign-in names: unique across clubs, and never equal to someone's player code. */
+function isUsernameViolation(error: unknown): boolean {
+  return isUniqueViolation(error) && /username/.test((error as { constraint?: string }).constraint ?? "");
+}
+
+async function assertUsernameIsNoCode(username: string, on: Db = db): Promise<void> {
+  const clash = await maybeOne("SELECT 1 FROM players WHERE lower(code::text) = $1", [username], on);
+  if (clash) throw conflict("USERNAME_TAKEN");
+}
+
 // ------------------------------------------------------- self-service --
 
 export async function changeUsername(session: ClubSession, username: string, request: Request): Promise<string> {
   const normalized = username.trim().toLowerCase();
   if (!USERNAME_PATTERN.test(normalized)) throw badRequest("INVALID_USERNAME");
+  await assertUsernameIsNoCode(normalized);
   try {
     await db.query("UPDATE players SET username = $1, updated_at = now() WHERE id = $2 AND club_id = $3", [
       normalized,
@@ -95,7 +107,7 @@ export async function changeUsername(session: ClubSession, username: string, req
       session.clubId,
     ]);
   } catch (error) {
-    if (isUniqueViolation(error)) throw conflict("USERNAME_TAKEN");
+    if (isUsernameViolation(error)) throw conflict("USERNAME_TAKEN");
     throw error;
   }
   await audit({ clubId: session.clubId, actor: session, action: "player.username_changed", entityType: "player", entityId: session.accountId, request });
@@ -105,11 +117,14 @@ export async function changeUsername(session: ClubSession, username: string, req
 /** Changes the PIN and signs the player out everywhere else. */
 export async function changePin(session: ClubSession, currentPin: string, newPin: string, request: Request): Promise<void> {
   if (currentPin === newPin) throw badRequest("PIN_UNCHANGED");
+  // The current PIN is a secret like any other: guessing it is rate limited.
+  const attemptId = await reserveGuess(`pin-change:${session.accountId}`, request);
   const player = await maybeOne<{ pin_hash: string }>(
     "SELECT pin_hash FROM players WHERE id = $1 AND club_id = $2 AND active",
     [session.accountId, session.clubId],
   );
   if (!player || !(await verifySecret(currentPin, player.pin_hash))) throw new AppError("CURRENT_PIN_INVALID", 403);
+  await confirmGuess(attemptId);
   const newHash = await hashSecret(newPin);
   await transaction(async (tx) => {
     const changed = await tx.query(
@@ -175,7 +190,7 @@ async function insertPlayer(on: Db, clubId: string, player: NewPlayer): Promise<
       if (!isUniqueViolation(error)) throw error;
       // A chosen username that is taken is the caller's problem; a random
       // code or generated username colliding is ours, so try again.
-      if (player.username && isUniqueViolation(error, "players_club_username_unique")) throw conflict("USERNAME_TAKEN");
+      if (player.username && isUsernameViolation(error)) throw conflict("USERNAME_TAKEN");
     }
   }
   throw new Error("Could not generate a unique player code");
@@ -209,6 +224,7 @@ export async function registerPlayer(input: RegistrationInput, request: Request)
 
   const username = input.username.trim().toLowerCase();
   if (!USERNAME_PATTERN.test(username)) throw badRequest("INVALID_USERNAME");
+  await assertUsernameIsNoCode(username);
   const pinHash = await hashSecret(input.pin);
 
   const created = await transaction(async (tx) => {

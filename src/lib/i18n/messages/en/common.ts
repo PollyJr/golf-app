@@ -114,6 +114,7 @@ export const common: MessageShape<typeof source> = {
     INVALID_ORIGIN: "This request was refused. Refresh the page and try again.",
     UNAUTHENTICATED: "You have been signed out. Please sign in again.",
     FORBIDDEN: "You do not have access to this.",
+    SECRET_CHANGE_REQUIRED: "Choose your own PIN or password first.",
     NOT_FOUND: "This no longer exists.",
     TOO_MANY_ATTEMPTS: "Too many attempts. Wait fifteen minutes and try again.",
     INVALID_CREDENTIALS: "That combination is not right. Check your details.",

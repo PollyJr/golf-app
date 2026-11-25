@@ -93,8 +93,8 @@ async function buildSnapshot(base: RoundBaseRow, locale: Locale, on: Db = db): P
       [base.id],
       on,
     ),
-    many<{ round_participant_id: string; hole_number: number; strokes: number; putts: number | null }>(
-      `SELECT hs.round_participant_id, hs.hole_number, hs.strokes, hs.putts
+    many<{ round_participant_id: string; hole_number: number; strokes: number; putts: number | null; par_snapshot: number; distance_snapshot: number }>(
+      `SELECT hs.round_participant_id, hs.hole_number, hs.strokes, hs.putts, hs.par_snapshot, hs.distance_snapshot
          FROM hole_scores hs
          JOIN round_participants rp ON rp.id = hs.round_participant_id
         WHERE rp.round_id = $1`,
@@ -113,6 +113,16 @@ async function buildSnapshot(base: RoundBaseRow, locale: Locale, on: Db = db): P
     })),
     base.hole_count,
   );
+
+  // A hole that has been scored keeps the par and distance it had at that
+  // moment, so editing a course later never rewrites a finished card.
+  for (const score of scores) {
+    const hole = layout[score.hole_number - 1];
+    if (hole) {
+      hole.par = score.par_snapshot;
+      hole.distance = score.distance_snapshot;
+    }
+  }
 
   const byParticipant = new Map<string, { strokes: Strokes[]; putts: (number | null)[] }>();
   for (const participant of participants) {
@@ -210,17 +220,26 @@ export async function getSharedRound(shareToken: string, locale: Locale): Promis
     `${ROUND_BASE}
       WHERE r.share_token = $1
         AND club.status IN ('trial', 'active')
+        AND r.status <> 'rejected'
         AND (r.completed_at IS NULL OR r.completed_at > now() - interval '${SHARE_DAYS_AFTER_FINISH} days')`,
     [shareToken],
   );
-  return base ? buildSnapshot(base, locale) : null;
+  if (!base) return null;
+  const snapshot = await buildSnapshot(base, locale);
+  // Anyone with the link sees this: names and scores only, no account ids.
+  return {
+    ...snapshot,
+    starterId: "",
+    rejectionReason: null,
+    participants: snapshot.participants.map((participant) => ({ ...participant, playerId: null })),
+  };
 }
 
 /** Revision and club of a shared round, for the public stream. */
 export async function getSharedRoundRef(shareToken: string): Promise<{ id: string; revision: number } | null> {
   return maybeOne<{ id: string; revision: number }>(
     `SELECT r.id, r.revision FROM rounds r JOIN clubs club ON club.id = r.club_id
-      WHERE r.share_token = $1 AND club.status IN ('trial', 'active')
+      WHERE r.share_token = $1 AND club.status IN ('trial', 'active') AND r.status <> 'rejected'
         AND (r.completed_at IS NULL OR r.completed_at > now() - interval '${SHARE_DAYS_AFTER_FINISH} days')`,
     [shareToken],
   );
@@ -348,9 +367,10 @@ export async function createRound(session: ClubSession, input: CreateRoundInput)
         const event = await maybeOne(
           `SELECT 1 FROM events e JOIN clubs club ON club.id = e.club_id
             WHERE e.id = $1 AND e.club_id = $2 AND e.published AND e.leaderboard_enabled
+              AND (e.course_id IS NULL OR e.course_id = $3)
               AND (e.starts_at AT TIME ZONE club.timezone)::date <= (now() AT TIME ZONE club.timezone)::date
               AND (COALESCE(e.ends_at, e.starts_at) AT TIME ZONE club.timezone)::date >= (now() AT TIME ZONE club.timezone)::date`,
-          [input.eventId, clubId],
+          [input.eventId, clubId, course.id],
           tx,
         );
         if (!event) throw badRequest("EVENT_NOT_PLAYABLE");
@@ -413,8 +433,15 @@ export async function createRound(session: ClubSession, input: CreateRoundInput)
       return round.id;
     });
   } catch (error) {
-    if (isUniqueViolation(error)) throw conflict("ROUND_CONFLICT");
-    throw error;
+    if (!isUniqueViolation(error)) throw error;
+    // The same request arrived twice at once and the other copy won: hand
+    // back the round it created.
+    const existing = await maybeOne<{ id: string }>(
+      "SELECT id FROM rounds WHERE club_id = $1 AND client_id = $2 AND starter_player_id = $3",
+      [clubId, input.clientId, starterId],
+    );
+    if (existing) return existing.id;
+    throw conflict("ROUND_CONFLICT");
   }
 }
 
@@ -596,7 +623,13 @@ export async function setScore(session: ClubSession, roundId: string, input: Sco
            SET strokes = EXCLUDED.strokes,
                par_snapshot = EXCLUDED.par_snapshot,
                distance_snapshot = EXCLUDED.distance_snapshot,
-               putts = CASE WHEN $9 THEN EXCLUDED.putts ELSE LEAST(hole_scores.putts, EXCLUDED.strokes) END,
+               -- Putts that were not sent stay as they are, capped at the new
+               -- stroke count. (LEAST ignores NULL, hence the explicit guard.)
+               putts = CASE
+                 WHEN $9 THEN EXCLUDED.putts
+                 WHEN hole_scores.putts IS NULL THEN NULL
+                 ELSE LEAST(hole_scores.putts, EXCLUDED.strokes)
+               END,
                updated_by_player_id = EXCLUDED.updated_by_player_id,
                updated_at = now()`,
         [input.participantId, session.clubId, input.hole, input.strokes, hole.par, hole.distance_m, putts, session.accountId, puttsGiven],

@@ -97,8 +97,8 @@ export async function saveNewsItem(session: ClubSession, id: string | null, inpu
       await tx.query(
         `UPDATE content_items
             SET kind = $3,
-                title = COALESCE(title, '{}'::jsonb) || jsonb_build_object($4::text, $5::text),
-                body = COALESCE(body, '{}'::jsonb) || jsonb_build_object($4::text, $6::text),
+                title = jsonb_build_object($4::text, $5::text),
+                body = jsonb_build_object($4::text, $6::text),
                 pinned = $7, expires_at = $8,
                 published_at = CASE WHEN $9 THEN COALESCE(published_at, now()) ELSE NULL END,
                 updated_at = now()

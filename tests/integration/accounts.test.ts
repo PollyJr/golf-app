@@ -60,7 +60,7 @@ describe("player accounts", () => {
 
   it("limits attempts per client address", async () => {
     const request = () => fakeRequest("198.51.100.44");
-    for (let attempt = 0; attempt < 8; attempt += 1) {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
       await expect(signInPlayer(`FW-GUESS${attempt}`, "1234", request())).rejects.toThrow("INVALID_CREDENTIALS");
     }
     await expect(signInPlayer("FW-GUESS99", "1234", request())).rejects.toThrow("TOO_MANY_ATTEMPTS");

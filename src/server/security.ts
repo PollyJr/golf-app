@@ -33,12 +33,16 @@ export function randomPin(length = 6): string {
   return pin;
 }
 
+/**
+ * The client address as the edge proxy saw it. Railway sets `X-Real-IP`
+ * itself. `X-Forwarded-For` may start with entries the client made up, so
+ * only its last hop (added by the proxy) is trusted as a fallback.
+ */
 export function clientIp(request: Request): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  const real = request.headers.get("x-real-ip")?.trim();
+  if (real) return real;
+  const hops = request.headers.get("x-forwarded-for")?.split(",").map((hop) => hop.trim()).filter(Boolean);
+  return hops?.at(-1) ?? "unknown";
 }
 
 /** Keyed hash of the client address: enough to rate-limit, useless to identify. */

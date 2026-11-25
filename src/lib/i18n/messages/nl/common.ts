@@ -111,6 +111,7 @@ export const common = {
     INVALID_ORIGIN: "Dit verzoek is geweigerd. Ververs de pagina en probeer het opnieuw.",
     UNAUTHENTICATED: "Je bent uitgelogd. Log opnieuw in.",
     FORBIDDEN: "Je hebt hier geen toegang toe.",
+    SECRET_CHANGE_REQUIRED: "Kies eerst je eigen pincode of wachtwoord.",
     NOT_FOUND: "Dit bestaat niet (meer).",
     TOO_MANY_ATTEMPTS: "Te veel pogingen. Wacht een kwartier en probeer het opnieuw.",
     INVALID_CREDENTIALS: "Deze combinatie klopt niet. Controleer je gegevens.",

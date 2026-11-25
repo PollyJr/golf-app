@@ -16,7 +16,10 @@ function pair(emailName, passwordName) {
   const email = env[emailName]?.trim();
   const password = env[passwordName];
   if (Boolean(email) !== Boolean(password)) {
-    throw new Error(`${emailName} and ${passwordName} must be configured together`);
+    // The README says to remove the passwords after the first deploy; an
+    // e-mail left behind on its own must not block every later release.
+    console.log(`bootstrap: ${emailName} and ${passwordName} are not both set; skipping that account.`);
+    return null;
   }
   if (!email || !password) return null;
   if (password.length < MIN_PASSWORD_LENGTH) {
@@ -32,11 +35,12 @@ const player = {
   code: env.BOOTSTRAP_PLAYER_CODE?.trim().toUpperCase(),
   pin: env.BOOTSTRAP_PLAYER_PIN,
 };
-const playerValues = Object.values(player).filter(Boolean).length;
+let playerValues = Object.values(player).filter(Boolean).length;
 if (playerValues !== 0 && playerValues !== 3) {
-  throw new Error("BOOTSTRAP_PLAYER_NAME, BOOTSTRAP_PLAYER_CODE and BOOTSTRAP_PLAYER_PIN must be configured together");
+  console.log("bootstrap: BOOTSTRAP_PLAYER_NAME, _CODE and _PIN are not all set; skipping the player.");
+  playerValues = 0;
 }
-if (player.pin && !/^\d{4,12}$/.test(player.pin)) {
+if (playerValues === 3 && !/^\d{4,12}$/.test(player.pin)) {
   throw new Error("BOOTSTRAP_PLAYER_PIN must contain 4 to 12 digits");
 }
 const reset = env.BOOTSTRAP_RESET_CREDENTIALS === "true";
@@ -126,6 +130,17 @@ try {
         [clubId, player.name, initialsOf(player.name), usernameFor(player.name, player.code), player.code, hash, reset],
       );
     }
+  }
+
+  if (reset) {
+    // New credentials must also end whatever sessions the old ones opened.
+    const emails = [platform?.[0], owner?.[0]].filter(Boolean);
+    await client.query(
+      `DELETE FROM sessions
+        WHERE account_id IN (SELECT id FROM admin_accounts WHERE email = ANY($1::citext[]))
+           OR account_id IN (SELECT id FROM players WHERE code = $2)`,
+      [emails, playerValues === 3 ? player.code : null],
+    );
   }
 
   await client.query("COMMIT");

@@ -245,8 +245,8 @@ export async function saveEvent(session: ClubSession, eventId: string | null, in
       announce = !existing.published && input.published;
       await tx.query(
         `UPDATE events
-            SET title = COALESCE(title, '{}'::jsonb) || jsonb_build_object($3::text, $4::text),
-                description = COALESCE(description, '{}'::jsonb) || jsonb_build_object($3::text, $5::text),
+            SET title = jsonb_build_object($3::text, $4::text),
+                description = jsonb_build_object($3::text, $5::text),
                 kind = $6, starts_at = $7, ends_at = $8, registration_closes_at = $9, location = $10,
                 course_id = $11, capacity = $12, leaderboard_enabled = $13, published = $14, updated_at = now()
           WHERE id = $1 AND club_id = $2`,

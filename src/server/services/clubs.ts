@@ -222,8 +222,11 @@ export async function createClub(
 
   try {
     return await transaction(async (tx) => {
-      const taken = await many<{ slug: string }>("SELECT slug FROM clubs WHERE slug = $1 OR slug LIKE $1 || '-%'", [baseSlug], tx);
-      const slug = taken.length === 0 ? baseSlug : `${baseSlug}-${taken.length + 1}`;
+      const taken = new Set(
+        (await many<{ slug: string }>("SELECT slug FROM clubs WHERE slug = $1 OR slug LIKE $1 || '-%'", [baseSlug], tx)).map((row) => row.slug),
+      );
+      let slug = baseSlug;
+      for (let suffix = 2; taken.has(slug); suffix += 1) slug = `${baseSlug}-${suffix}`;
       const club = await one<{ id: string }>(
         `INSERT INTO clubs (slug, name, status, join_code, board_token)
          VALUES ($1, $2, 'active', $3, $4) RETURNING id`,
@@ -239,7 +242,7 @@ export async function createClub(
       return { id: club.id, ownerEmail: input.ownerEmail.toLowerCase(), ownerPassword };
     });
   } catch (error) {
-    if (isUniqueViolation(error)) throw conflict("EMAIL_TAKEN");
+    if (isUniqueViolation(error, "admin_accounts_email_key")) throw conflict("EMAIL_TAKEN");
     throw error;
   }
 }

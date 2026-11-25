@@ -5,6 +5,7 @@ import { audit } from "../audit";
 import { many, maybeOne, one, transaction, type Db } from "../db";
 import { AppError, conflict, isUniqueViolation, notFound } from "../errors";
 import { hashSecret, randomToken, verifySecret } from "../security";
+import { confirmGuess, reserveGuess } from "./auth";
 import { initialsOf } from "@/lib/format";
 
 export interface StaffMember {
@@ -71,13 +72,22 @@ export async function createStaff(
 }
 
 /** A club must always keep at least one owner who can sign in. */
-async function assertAnotherOwner(tx: Db, clubId: string, exceptId: string): Promise<void> {
-  const others = await one<{ count: number }>(
-    "SELECT count(*)::int AS count FROM admin_accounts WHERE club_id = $1 AND role = 'club_owner' AND active AND id <> $2",
-    [clubId, exceptId],
+/**
+ * Locks every active owner of the club, in a fixed order, and returns their
+ * ids. Taken first in a staff change, it makes two owners who remove each
+ * other at the same moment wait for one another instead of both succeeding.
+ */
+async function lockOwners(tx: Db, clubId: string): Promise<string[]> {
+  const owners = await many<{ id: string }>(
+    "SELECT id FROM admin_accounts WHERE club_id = $1 AND role = 'club_owner' AND active ORDER BY id FOR UPDATE",
+    [clubId],
     tx,
   );
-  if (others.count === 0) throw conflict("LAST_OWNER");
+  return owners.map((owner) => owner.id);
+}
+
+function assertAnotherOwner(owners: readonly string[], exceptId: string): void {
+  if (!owners.some((id) => id !== exceptId)) throw conflict("LAST_OWNER");
 }
 
 export type StaffAction =
@@ -91,6 +101,7 @@ export async function applyStaffAction(session: ClubSession, staffId: string, in
   const passwordHash = password ? await hashSecret(password) : null;
 
   return transaction(async (tx) => {
+    const owners = await lockOwners(tx, session.clubId);
     const member = await maybeOne<{ email: string; role: string; active: boolean }>(
       "SELECT email::text AS email, role, active FROM admin_accounts WHERE id = $1 AND club_id = $2 FOR UPDATE",
       [staffId, session.clubId],
@@ -105,13 +116,13 @@ export async function applyStaffAction(session: ClubSession, staffId: string, in
         break;
       case "deactivate":
         if (self) throw conflict("CANNOT_CHANGE_SELF");
-        if (member.role === "club_owner") await assertAnotherOwner(tx, session.clubId, staffId);
+        if (member.role === "club_owner") assertAnotherOwner(owners, staffId);
         await tx.query("UPDATE admin_accounts SET active = false, updated_at = now() WHERE id = $1", [staffId]);
         await destroyAccountSessions("club_staff", staffId, undefined, tx);
         break;
       case "role":
         if (self) throw conflict("CANNOT_CHANGE_SELF");
-        if (member.role === "club_owner" && input.role !== "club_owner") await assertAnotherOwner(tx, session.clubId, staffId);
+        if (member.role === "club_owner" && input.role !== "club_owner") assertAnotherOwner(owners, staffId);
         await tx.query("UPDATE admin_accounts SET role = $2, updated_at = now() WHERE id = $1", [staffId, input.role]);
         await tx.query("UPDATE sessions SET role = $2 WHERE account_id = $1 AND role <> 'player'", [staffId, input.role]);
         break;
@@ -134,6 +145,7 @@ export async function applyStaffAction(session: ClubSession, staffId: string, in
 /** Any administrator changes their own password; other sessions end. */
 export async function changeOwnPassword(session: Session, currentPassword: string, newPassword: string, request: Request): Promise<void> {
   if (currentPassword === newPassword) throw new AppError("PASSWORD_UNCHANGED", 400);
+  const attemptId = await reserveGuess(`password-change:${session.accountId}`, request);
   const account = await maybeOne<{ password_hash: string }>(
     "SELECT password_hash FROM admin_accounts WHERE id = $1 AND active",
     [session.accountId],
@@ -141,6 +153,7 @@ export async function changeOwnPassword(session: Session, currentPassword: strin
   if (!account || !(await verifySecret(currentPassword, account.password_hash))) {
     throw new AppError("CURRENT_PASSWORD_INVALID", 403);
   }
+  await confirmGuess(attemptId);
   const newHash = await hashSecret(newPassword);
   await transaction(async (tx) => {
     await tx.query(

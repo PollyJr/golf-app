@@ -4,7 +4,7 @@ import { countUnread } from "@/server/services/notifications";
 import { listActiveRounds } from "@/server/services/rounds";
 
 /** Everything the app shell keeps live: open rounds, invitations, unread count. */
-export const GET = route({ access: "player" }, async ({ session }) => {
+export const GET = route({ access: "player", allowBeforeSecretChange: true }, async ({ session }) => {
   const locale = await getLocale();
   const [rounds, unread] = await Promise.all([
     listActiveRounds(session.clubId, session.accountId, locale),
