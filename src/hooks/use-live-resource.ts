@@ -50,30 +50,33 @@ export function useLiveResource<T>({ url, streamUrl, initial, onGone }: Options<
 
   const refresh = useCallback(async (): Promise<void> => {
     if (!url) return;
-    // Coalesce bursts of change events into at most one follow-up request.
+    // Coalesce bursts of change events: while a request is running, remember
+    // that another one is wanted and let the running loop pick it up.
     if (inFlight.current) {
       queued.current = true;
       return inFlight.current;
     }
     const run = (async () => {
-      try {
-        const result = await api.getConditional<T>(url, { etag: etag.current });
-        if (!result.notModified && result.data !== null) {
-          etag.current = result.etag;
-          setData(result.data);
+      do {
+        queued.current = false;
+        try {
+          const result = await api.getConditional<T>(url, { etag: etag.current });
+          if (!result.notModified && result.data !== null) {
+            etag.current = result.etag;
+            setData(result.data);
+          }
+          setConnection((current) => (current === "offline" ? "live" : current));
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 404) onGoneRef.current?.();
+          else if (error instanceof ApiError && error.status === 0) setConnection("offline");
         }
-        setConnection((current) => (current === "offline" ? "live" : current));
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 404) onGoneRef.current?.();
-        else if (error instanceof ApiError && error.status === 0) setConnection("offline");
-      }
+      } while (queued.current);
     })();
     inFlight.current = run;
-    await run;
-    inFlight.current = null;
-    if (queued.current) {
-      queued.current = false;
-      await refresh();
+    try {
+      await run;
+    } finally {
+      inFlight.current = null;
     }
   }, [url]);
 

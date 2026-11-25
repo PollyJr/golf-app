@@ -2,10 +2,11 @@
 
 import { Award, Bell, CalendarDays, CircleAlert, Flag, Newspaper, ShieldCheck, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useFormat, useT } from "@/components/providers";
 import { useOverview } from "@/components/shell/overview";
 import { EmptyState } from "@/components/ui/card";
+import { useNow } from "@/hooks/use-now";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
@@ -47,10 +48,9 @@ export function NotificationList({ initial }: { initial: NotificationDto[] }) {
   const t = useT();
   const { locale } = useFormat();
   const { refresh } = useOverview();
-  const [now, setNow] = useState<Date | null>(null);
+  const now = useNow();
 
   useEffect(() => {
-    setNow(new Date());
     if (initial.some((notification) => notification.readAt === null)) {
       void api.post("/api/me/notifications", {}).then(refresh).catch(() => {});
     }

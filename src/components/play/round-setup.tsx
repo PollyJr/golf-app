@@ -43,8 +43,8 @@ export function RoundSetup({ me, courses, recentPartners, events, preselect }: R
   const [guests, setGuests] = useState<string[]>([]);
   const [guestName, setGuestName] = useState("");
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<PlayerSummary[]>([]);
-  const [searching, setSearching] = useState(false);
+  // The players found for a given search term; stale once the term changes.
+  const [found, setFound] = useState<{ term: string; players: PlayerSummary[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   // One id per page view: a retried request can never create a second round.
@@ -57,35 +57,32 @@ export function RoundSetup({ me, courses, recentPartners, events, preselect }: R
   const playableEvents = events.filter((event) => event.courseId === null || event.courseId === courseId);
   const activeRound = overview.rounds.find((round) => round.status === "active" && round.myInvitation === "accepted");
 
+  const term = query.trim();
+  const searchable = term.length >= 2;
+  const results = searchable && found?.term === term ? found.players : [];
+  const searching = searchable && found?.term !== term;
+
   useEffect(() => {
-    const term = query.trim();
-    if (term.length < 2) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
+    if (!searchable) return;
     const controller = new AbortController();
-    setSearching(true);
     const timer = window.setTimeout(async () => {
       try {
         const data = await api.get<{ players: PlayerSummary[] }>(`/api/players/search?q=${encodeURIComponent(term)}`, { signal: controller.signal });
-        setResults(data.players);
+        setFound({ term, players: data.players });
       } catch {
-        if (!controller.signal.aborted) setResults([]);
+        if (!controller.signal.aborted) setFound({ term, players: [] });
       }
-      if (!controller.signal.aborted) setSearching(false);
     }, SEARCH_DEBOUNCE_MS);
     return () => {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [term, searchable]);
 
   function addMember(player: PlayerSummary) {
     if (full || members.some((member) => member.id === player.id)) return;
     setMembers((current) => [...current, player]);
     setQuery("");
-    setResults([]);
   }
 
   function addGuest(event: FormEvent) {
@@ -303,7 +300,7 @@ export function RoundSetup({ me, courses, recentPartners, events, preselect }: R
                       className="h-12 w-full rounded-control border border-line-strong bg-surface pr-3 pl-10 text-[15px] placeholder:text-ink-3 focus:border-brand-fg focus:ring-3 focus:ring-brand-fg/15 focus:outline-none"
                     />
                   </div>
-                  {query.trim().length >= 2 ? (
+                  {searchable ? (
                     <ul className="mt-2 flex flex-col gap-1" aria-live="polite">
                       {results
                         .filter((player) => !members.some((member) => member.id === player.id))

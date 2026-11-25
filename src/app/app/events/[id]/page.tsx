@@ -8,10 +8,10 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card, Eyebrow, SectionHeading } from "@/components/ui/card";
-import { dayKey, formatDateTime, formatLongDate, formatTime } from "@/lib/format";
+import { formatDateTime, formatLongDate, formatTime } from "@/lib/format";
 import { requirePlayer } from "@/server/auth/guards";
 import { getT } from "@/server/i18n";
-import { getEvent, getEventLeaderboard, listEventParticipants } from "@/server/services/events";
+import { getEvent, getEventLeaderboard, listEventParticipants, listPlayableEvents } from "@/server/services/events";
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requirePlayer();
@@ -22,17 +22,15 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const event = await getEvent(session.clubId, id, locale, { playerId: session.accountId });
   if (!event) notFound();
 
-  const [participants, leaderboard] = await Promise.all([
+  const [participants, leaderboard, playable] = await Promise.all([
     listEventParticipants(session.clubId, id),
     event.leaderboardEnabled ? getEventLeaderboard(session.clubId, id) : Promise.resolve([]),
+    event.leaderboardEnabled ? listPlayableEvents(session.clubId, locale) : Promise.resolve([]),
   ]);
   const registered = participants.filter((participant) => participant.status === "registered");
   const waitlisted = participants.filter((participant) => participant.status === "waitlisted");
-  const now = Date.now();
-  const start = new Date(event.startsAt).getTime();
-  const end = event.endsAt ? new Date(event.endsAt).getTime() : start;
   // A round can count for the event on the day(s) it takes place.
-  const playableToday = event.leaderboardEnabled && dayKey(now, timeZone) >= dayKey(start, timeZone) && dayKey(now, timeZone) <= dayKey(end, timeZone);
+  const playableToday = playable.some((item) => item.id === event.id);
 
   return (
     <div className="flex flex-col gap-7">

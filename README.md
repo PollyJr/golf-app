@@ -144,6 +144,7 @@ of rounds, live flights, events and news. Demo players sign in with the codes
 | `npm start` | runs the standalone production server |
 | `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
 | `npm test` | unit and integration tests |
+| `npm run e2e` | browser smoke test of the main journeys against a running, seeded app (`BASE_URL`, default `http://localhost:3000`) |
 | `npm run db:migrate` / `db:bootstrap` / `db:prepare` / `db:seed` | database scripts |
 
 The integration tests need a database they may wipe. They use
@@ -154,7 +155,7 @@ run.
 ## Deploying to Railway
 
 The repository contains a `Dockerfile` and `railway.json`. Railway builds the
-image, runs `node db/migrate.mjs && node db/bootstrap.mjs` as the pre-deploy
+image, runs `npm run db:prepare` (migrate, then bootstrap) as the pre-deploy
 command, and only routes traffic once `/api/health` answers 200.
 
 1. Create a project with a **PostgreSQL** service and a service for this

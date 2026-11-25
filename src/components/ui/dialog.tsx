@@ -37,8 +37,13 @@ export function Dialog({ open, onClose, title, description, children, footer, si
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
-      onCancel={onClose}
+      // React state is the source of truth. Escape asks to close; the native
+      // "close" event is deliberately ignored because it also fires when we
+      // close the element ourselves, e.g. while switching to another dialog.
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
       onClick={(event) => {
         // A click on the backdrop lands on the dialog element itself.
         if (event.target === ref.current) onClose();

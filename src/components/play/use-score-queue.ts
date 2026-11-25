@@ -23,29 +23,31 @@ export interface ScoreIntent {
   seq: number;
 }
 
+/** An intent the server has accepted, with the round revision that contains it. */
 interface Confirmed {
   intent: ScoreIntent;
   revision: number;
 }
 
 const RETRY_MS = 4_000;
+const MAX_CONFIRMED = 40;
 const storageKey = (roundId: string) => `fairway:score-queue:${roundId}`;
 const keyOf = (intent: Pick<ScoreIntent, "participantId" | "hole">) => `${intent.participantId}:${intent.hole}`;
 
-function loadQueue(roundId: string): Map<string, ScoreIntent> {
+function loadQueue(roundId: string): ScoreIntent[] {
   try {
     const raw = window.localStorage.getItem(storageKey(roundId));
-    const items = raw ? (JSON.parse(raw) as ScoreIntent[]) : [];
-    return new Map(items.map((intent) => [keyOf(intent), intent]));
+    const items: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(items) ? (items as ScoreIntent[]) : [];
   } catch {
-    return new Map();
+    return [];
   }
 }
 
-function saveQueue(roundId: string, queue: Map<string, ScoreIntent>): void {
+function saveQueue(roundId: string, queue: readonly ScoreIntent[]): void {
   try {
-    if (queue.size === 0) window.localStorage.removeItem(storageKey(roundId));
-    else window.localStorage.setItem(storageKey(roundId), JSON.stringify([...queue.values()]));
+    if (queue.length === 0) window.localStorage.removeItem(storageKey(roundId));
+    else window.localStorage.setItem(storageKey(roundId), JSON.stringify(queue));
   } catch {
     // Private mode or a full disk: the queue still works for this page view.
   }
@@ -85,21 +87,28 @@ interface Options {
 
 export function useScoreQueue({ round, refresh, onRejected }: Options): ScoreQueue {
   const roundId = round.id;
-  const queue = useRef<Map<string, ScoreIntent>>(new Map());
-  const confirmed = useRef<Map<string, Confirmed>>(new Map());
+  const [pending, setPending] = useState<ScoreIntent[]>([]);
+  const [confirmed, setConfirmed] = useState<Confirmed[]>([]);
+  const [sync, setSync] = useState<SyncState>("idle");
+
+  // The sending loop is asynchronous and must always see the latest queue,
+  // so the queue lives in a ref and is mirrored into state for rendering.
+  const queue = useRef<ScoreIntent[]>([]);
   const sequence = useRef(0);
   const flushing = useRef(false);
   const retryTimer = useRef<number | undefined>(undefined);
-  const [version, setVersion] = useState(0);
-  const [sync, setSync] = useState<SyncState>("idle");
-  const bump = useCallback(() => setVersion((value) => value + 1), []);
-
+  const flushRef = useRef<() => Promise<void>>(async () => {});
   const onRejectedRef = useRef(onRejected);
   const refreshRef = useRef(refresh);
-  useEffect(() => {
-    onRejectedRef.current = onRejected;
-    refreshRef.current = refresh;
-  }, [onRejected, refresh]);
+
+  const commit = useCallback(
+    (next: ScoreIntent[]) => {
+      queue.current = next;
+      saveQueue(roundId, next);
+      setPending(next);
+    },
+    [roundId],
+  );
 
   const flush = useCallback(async () => {
     if (flushing.current) return;
@@ -108,7 +117,7 @@ export function useScoreQueue({ round, refresh, onRejected }: Options): ScoreQue
     let rejected = false;
     try {
       for (;;) {
-        const next = queue.current.values().next().value as ScoreIntent | undefined;
+        const next = queue.current[0];
         if (!next) break;
         setSync("saving");
         try {
@@ -118,21 +127,21 @@ export function useScoreQueue({ round, refresh, onRejected }: Options): ScoreQue
             strokes: next.strokes,
             ...(next.putts !== undefined ? { putts: next.putts } : {}),
           });
-          const key = keyOf(next);
-          // Only clear it when the player has not changed their mind meanwhile.
-          if (queue.current.get(key)?.seq === next.seq) queue.current.delete(key);
-          confirmed.current.set(key, { intent: next, revision: result.revision });
+          // Keep showing the value until a snapshot that contains it arrives.
+          setConfirmed((current) =>
+            [...current.filter((entry) => keyOf(entry.intent) !== keyOf(next)), { intent: next, revision: result.revision }].slice(-MAX_CONFIRMED),
+          );
         } catch (error) {
           if (isTransient(error)) {
             setSync("waiting");
-            retryTimer.current = window.setTimeout(() => void flush(), RETRY_MS);
+            retryTimer.current = window.setTimeout(() => void flushRef.current(), RETRY_MS);
             return;
           }
-          queue.current.delete(keyOf(next));
           rejected = true;
         }
-        saveQueue(roundId, queue.current);
-        bump();
+        // If the player changed their mind meanwhile, the newer intent has a
+        // different sequence number and stays queued.
+        commit(queue.current.filter((intent) => intent.seq !== next.seq));
       }
       setSync("idle");
     } finally {
@@ -140,52 +149,54 @@ export function useScoreQueue({ round, refresh, onRejected }: Options): ScoreQue
     }
     if (rejected) onRejectedRef.current();
     await refreshRef.current();
-  }, [roundId, bump]);
+  }, [roundId, commit]);
 
-  // Pick up whatever a previous visit could not send.
   useEffect(() => {
-    queue.current = loadQueue(roundId);
-    sequence.current = Math.max(0, ...[...queue.current.values()].map((intent) => intent.seq));
-    if (queue.current.size > 0) {
-      bump();
-      void flush();
+    flushRef.current = flush;
+    onRejectedRef.current = onRejected;
+    refreshRef.current = refresh;
+  }, [flush, onRejected, refresh]);
+
+  // Pick up whatever a previous visit could not send, and retry when the
+  // device comes back online.
+  useEffect(() => {
+    const stored = loadQueue(roundId);
+    if (stored.length > 0) {
+      sequence.current = Math.max(...stored.map((intent) => intent.seq));
+      void Promise.resolve().then(() => {
+        commit(stored);
+        return flushRef.current();
+      });
     }
-    const online = () => void flush();
+    const online = () => void flushRef.current();
     window.addEventListener("online", online);
     return () => {
       window.removeEventListener("online", online);
       window.clearTimeout(retryTimer.current);
     };
-  }, [roundId, bump, flush]);
+  }, [roundId, commit]);
 
   const setScore = useCallback(
     (change: Omit<ScoreIntent, "seq">) => {
       sequence.current += 1;
       const key = keyOf(change);
-      const previous = queue.current.get(key);
+      const previous = queue.current.find((intent) => keyOf(intent) === key);
       // Keep a queued putts value when this change only touches the strokes.
       const putts = change.putts !== undefined ? change.putts : previous?.putts;
-      queue.current.delete(key);
-      queue.current.set(key, { ...change, putts, seq: sequence.current });
-      saveQueue(roundId, queue.current);
-      bump();
-      void flush();
+      commit([...queue.current.filter((intent) => keyOf(intent) !== key), { ...change, putts, seq: sequence.current }]);
+      void flushRef.current();
     },
-    [roundId, bump, flush],
+    [commit],
   );
 
   const view = useMemo(() => {
     let next = round;
-    // Changes the server has accepted but that are not in this snapshot yet.
-    for (const [key, entry] of confirmed.current) {
-      if (entry.revision <= round.revision) confirmed.current.delete(key);
-      else next = applyIntent(next, entry.intent);
+    for (const entry of confirmed) {
+      if (entry.revision > round.revision) next = applyIntent(next, entry.intent);
     }
-    for (const intent of queue.current.values()) next = applyIntent(next, intent);
+    for (const intent of pending) next = applyIntent(next, intent);
     return next;
-    // `version` changes whenever the refs above change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [round, version]);
+  }, [round, confirmed, pending]);
 
-  return { view, pendingCount: queue.current.size, sync, setScore };
+  return { view, pendingCount: pending.length, sync, setScore };
 }
