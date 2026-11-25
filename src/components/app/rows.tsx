@@ -7,6 +7,7 @@ import { dateParts, formatShortDate, formatTime } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/core";
 import type { AppTranslate } from "@/lib/i18n/dictionaries";
 import type { EventDto, NewsItem, RoundHistoryItem } from "@/lib/types";
+import { NAV_FORWARD } from "@/components/motion/page-transition";
 
 const STATUS_TONE: Record<RoundHistoryItem["status"], Tone> = { pending: "gold", approved: "under", rejected: "danger" };
 
@@ -22,7 +23,8 @@ export function RoundRow({ round, t, locale, timeZone }: { round: RoundHistoryIt
   return (
     <Link
       href={`/app/results/${round.id}`}
-      className="flex items-center gap-4 rounded-card border border-line bg-surface px-4 py-3.5 shadow-card transition hover:border-line-strong active:scale-[0.99]"
+      transitionTypes={NAV_FORWARD}
+      className="flex items-center gap-4 rounded-card border border-line bg-surface px-4 py-3.5 shadow-card transition duration-300 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-pop active:scale-[0.99]"
     >
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold">{round.courseName}</p>
@@ -61,6 +63,7 @@ export function EventRow({ event, t, locale, timeZone }: { event: EventDto } & F
   return (
     <Link
       href={`/app/events/${event.id}`}
+      transitionTypes={NAV_FORWARD}
       className="flex items-center gap-4 rounded-card border border-line bg-surface p-4 shadow-card transition hover:border-line-strong active:scale-[0.99]"
     >
       <DateTile date={event.startsAt} locale={locale} timeZone={timeZone} />
@@ -98,6 +101,7 @@ export function NewsRow({ item, t, locale, timeZone }: { item: NewsItem } & Form
   return (
     <Link
       href={`/app/club/news/${item.id}`}
+      transitionTypes={NAV_FORWARD}
       className="block rounded-card border border-line bg-surface p-4 shadow-card transition hover:border-line-strong active:scale-[0.99]"
     >
       <div className="flex items-center gap-2">

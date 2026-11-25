@@ -50,6 +50,9 @@ export const play = {
     cancelled: "De ronde is geannuleerd.",
   },
   card: {
+    movedUp: { one: "{count} plaats gestegen", other: "{count} plaatsen gestegen" },
+    movedDown: { one: "{count} plaats gezakt", other: "{count} plaatsen gezakt" },
+    leading: "Aan de leiding",
     holeOf: "Hole {current} van {total}",
     par: "Par",
     distance: "Afstand",

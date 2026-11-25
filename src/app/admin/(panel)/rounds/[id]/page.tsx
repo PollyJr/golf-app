@@ -60,7 +60,7 @@ export default async function AdminRoundPage({ params }: { params: Promise<{ id:
         <div className="flex min-w-0 flex-col gap-6">
           <Card padding="lg">
             <SectionHeading title={t("admin.rounds.detail.ranking")} />
-            <ol className="flex flex-col">
+            <ol className="stagger-children flex flex-col">
               {ranked.map((row) => (
                 <li key={row.participant.id} className="flex items-center gap-3 border-b border-line py-2.5 last:border-b-0">
                   <span className="font-score w-6 text-center text-lg text-ink-3">{row.thru === 0 ? "–" : row.rank}</span>

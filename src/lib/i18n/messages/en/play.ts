@@ -53,6 +53,9 @@ export const play: MessageShape<typeof source> = {
     cancelled: "The round was cancelled.",
   },
   card: {
+    movedUp: { one: "Up {count} place", other: "Up {count} places" },
+    movedDown: { one: "Down {count} place", other: "Down {count} places" },
+    leading: "In the lead",
     holeOf: "Hole {current} of {total}",
     par: "Par",
     distance: "Distance",

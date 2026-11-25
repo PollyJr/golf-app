@@ -10,6 +10,7 @@ import { getT } from "@/server/i18n";
 import { getCourse } from "@/server/services/courses";
 import { getCourseRecords } from "@/server/services/leaderboards";
 import { getPlayerOverview } from "@/server/services/stats";
+import { NAV_BACK } from "@/components/motion/page-transition";
 
 export default async function CoursePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requirePlayer();
@@ -27,7 +28,7 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="flex flex-col gap-7">
-      <Link href="/app/courses" className="text-sm font-semibold text-ink-2 hover:text-ink">
+      <Link href="/app/courses" transitionTypes={NAV_BACK} className="text-sm font-semibold text-ink-2 hover:text-ink">
         ← {t("app.courses.backToCourses")}
       </Link>
 
@@ -44,7 +45,7 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
         </LinkButton>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <section className="stagger-children grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Stat label={t("app.courses.par")} value={course.par} />
         <Stat label={t("app.courses.length")} value={`${formatNumber(course.length, locale)} ${t("app.courses.meters")}`} />
         <div className="col-span-2 lg:col-span-1">
@@ -74,7 +75,7 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
       <section>
         <SectionHeading title={t("app.courses.holeGuide")} />
         <Card padding="none">
-          <ol className="divide-y divide-line">
+          <ol className="stagger-children divide-y divide-line">
             {course.holes.map((hole) => {
               const mine = myHoles.get(hole.number);
               return (

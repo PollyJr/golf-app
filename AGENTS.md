@@ -48,6 +48,12 @@ architecture; this file is the short list of rules that keep the code coherent.
   club's time zone, so server and browser render the same text.
 - **Dialogs** use `Dialog`; never `window.confirm/prompt/alert`. One-time
   secrets (PINs, passwords) are shown once and never stored in plain text.
+- **Motion** uses the `animate-*` utilities and motion tokens in
+  `globals.css`, the hooks in `src/hooks/use-motion.ts` (`useFlip`,
+  `useChangeCount`, `useCountUp`) and `src/components/motion`. Links say which
+  way a page transition goes with `transitionTypes` (`NAV_FORWARD`,
+  `NAV_BACK`, `NAV_TAB`). Anything animated from JavaScript checks
+  `prefersReducedMotion()`; CSS animations are handled globally.
 - **Database**: add a new numbered file to `db/migrations`; never edit one that
   has shipped. Enum parameters need an explicit cast in SQL
   (`$1::round_status`) when the same parameter is used twice.

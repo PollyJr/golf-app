@@ -83,14 +83,20 @@ const RELATIVE_STEPS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ["minute", 60],
 ];
 
-/** `3 minuten geleden`, `over 2 dagen`. */
+/** `3 minuten geleden`, `over 2 dagen`; `nu` within a minute either way. */
 export function formatRelative(value: DateInput, locale: Locale, now: Date = new Date()): string {
   const seconds = Math.round((toDate(value).getTime() - now.getTime()) / 1000);
   const relative = new Intl.RelativeTimeFormat(intlLocale(locale), { numeric: "auto" });
   for (const [unit, size] of RELATIVE_STEPS) {
     if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit);
   }
-  return relative.format(0, "minute");
+  return relative.format(0, "second");
+}
+
+/** How long ago something happened; a moment "in the future" (clock skew) is now. */
+export function formatSince(value: DateInput, locale: Locale, now: Date): string {
+  const time = toDate(value);
+  return formatRelative(time > now ? now : time, locale, now);
 }
 
 export function formatNumber(value: number, locale: Locale, fractionDigits = 0): string {

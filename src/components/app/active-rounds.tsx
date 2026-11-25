@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useErrorMessage, useT, useToast } from "@/components/providers";
+import { NAV_FORWARD } from "@/components/motion/page-transition";
 import { useOverview } from "@/components/shell/overview";
 import { AvatarStack } from "@/components/ui/avatar";
 import { Badge, LiveDot } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/card";
+import { useFlip } from "@/hooks/use-motion";
 import { api } from "@/lib/api-client";
 import type { ActiveRoundSummary } from "@/lib/types";
 
@@ -17,14 +19,20 @@ import type { ActiveRoundSummary } from "@/lib/types";
 export function ActiveRounds() {
   const t = useT();
   const { overview } = useOverview();
+  // An invitation that arrives pops in; a round whose scores move lights up.
+  const flip = useFlip({ enter: "pop" });
   if (overview.rounds.length === 0) return null;
 
   return (
-    <section className="mb-8">
+    <section className="animate-rise mb-8">
       <SectionHeading title={t("app.home.liveHeading")} />
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {overview.rounds.map((round) => (
-          <li key={round.id}>
+          <li
+            key={round.id}
+            ref={flip(round.id, `${round.status}|${round.completedScores}|${round.myInvitation}|${round.participants.length}`)}
+            className="rounded-card"
+          >
             <RoundCard round={round} />
           </li>
         ))}
@@ -50,7 +58,7 @@ function RoundCard({ round }: { round: ActiveRoundSummary }) {
     try {
       await api.post(`/api/rounds/${round.id}/respond`, { decision });
       await refresh();
-      if (decision === "accept") router.push(`/app/play/${round.id}`);
+      if (decision === "accept") router.push(`/app/play/${round.id}`, { transitionTypes: NAV_FORWARD });
       else toast.success(t("play.lobby.declined"));
     } catch (error) {
       toast.error(errorMessage(error));
@@ -91,7 +99,7 @@ function RoundCard({ round }: { round: ActiveRoundSummary }) {
       </div>
       {round.status === "active" ? (
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line" role="presentation">
-          <div className="h-full rounded-full bg-under transition-[width] duration-500" style={{ width: `${progress}%` }} />
+          <div className="h-full rounded-full bg-under transition-[width] duration-700 ease-(--ease-out)" style={{ width: `${progress}%` }} />
         </div>
       ) : null}
     </>
@@ -99,7 +107,7 @@ function RoundCard({ round }: { round: ActiveRoundSummary }) {
 
   if (invited) {
     return (
-      <article className="rounded-card border border-gold/40 bg-surface p-5 shadow-card">
+      <article className="rounded-card border border-gold/40 bg-surface p-5 shadow-card [--glow-color:var(--gold)] animate-glow">
         {body}
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Button variant="secondary" loading={busy === "decline"} disabled={busy !== null} onClick={() => void respond("decline")} icon={<X className="size-4" />}>
@@ -116,7 +124,8 @@ function RoundCard({ round }: { round: ActiveRoundSummary }) {
   return (
     <Link
       href={`/app/play/${round.id}`}
-      className="block rounded-card border border-line bg-surface p-5 shadow-card transition hover:border-line-strong active:scale-[0.99]"
+      transitionTypes={NAV_FORWARD}
+      className="block rounded-card border border-line bg-surface p-5 shadow-card transition duration-300 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-pop active:scale-[0.99]"
     >
       {body}
       <span className="mt-4 flex items-center justify-end gap-1 text-sm font-semibold text-brand-fg">

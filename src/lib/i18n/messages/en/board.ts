@@ -2,6 +2,7 @@ import type { MessageShape } from "../../core";
 import type { board as source } from "../nl/board";
 
 export const board: MessageShape<typeof source> = {
+  latest: "Latest",
   title: "Clubhouse",
   onCourse: "On the course now",
   nobodyOnCourse: "Nobody is on the course at the moment.",

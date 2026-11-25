@@ -7,10 +7,17 @@ import { LinkButton } from "@/components/ui/button";
 import { requirePlayer } from "@/server/auth/guards";
 import { getT } from "@/server/i18n";
 import { getRoundForPlayer } from "@/server/services/rounds";
+import { NAV_BACK } from "@/components/motion/page-transition";
 
-export default async function ResultPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ResultPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ done?: string }>;
+}) {
   const session = await requirePlayer();
-  const { id } = await params;
+  const [{ id }, { done }] = await Promise.all([params, searchParams]);
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const { t, locale } = await getT();
   const round = await getRoundForPlayer(session.clubId, session.accountId, id, locale);
@@ -23,8 +30,9 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
       round={round}
       t={t}
       locale={locale}
+      celebrate={done === "1" && participant}
       top={
-        <Link href={participant ? "/app/results" : "/app/leaderboards"} className="font-semibold text-ink-2 hover:text-ink">
+        <Link href={participant ? "/app/results" : "/app/leaderboards"} transitionTypes={NAV_BACK} className="font-semibold text-ink-2 hover:text-ink">
           ← {participant ? t("app.results.allResults") : t("common.nav.leaderboards")}
         </Link>
       }

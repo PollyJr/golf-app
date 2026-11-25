@@ -27,7 +27,7 @@ export function Field({ label, hint, error, className, children }: FieldProps) {
       </label>
       {children(id, describedBy)}
       {error ? (
-        <p id={hintId} role="alert" className="text-[13px] font-medium text-danger">
+        <p id={hintId} role="alert" className="animate-fade-in text-[13px] font-medium text-danger">
           {error}
         </p>
       ) : hint ? (
@@ -196,7 +196,8 @@ export function Segmented<T extends string>({ value, onChange, options, label, s
 export function FormError({ children }: { children?: ReactNode }) {
   if (!children) return null;
   return (
-    <p role="alert" className="rounded-control bg-danger-soft px-3.5 py-2.5 text-sm font-medium text-danger">
+    // Keyed by the message, so each new error gives the form a short shake.
+    <p key={typeof children === "string" ? children : undefined} role="alert" className="animate-shake rounded-control bg-danger-soft px-3.5 py-2.5 text-sm font-medium text-danger">
       {children}
     </p>
   );

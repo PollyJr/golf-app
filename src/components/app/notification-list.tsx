@@ -9,9 +9,10 @@ import { EmptyState } from "@/components/ui/card";
 import { useNow } from "@/hooks/use-now";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/cn";
-import { formatRelative } from "@/lib/format";
+import { formatSince } from "@/lib/format";
 import { isAchievementKey } from "@/lib/golf/achievements";
 import type { NotificationDto, NotificationKind } from "@/lib/types";
+import { NAV_FORWARD } from "@/components/motion/page-transition";
 
 const ICONS: Record<NotificationKind, LucideIcon> = {
   round_invite: Flag,
@@ -71,7 +72,7 @@ export function NotificationList({ initial }: { initial: NotificationDto[] }) {
   }
 
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className="stagger-children flex flex-col gap-2">
       {initial.map((notification) => {
         const Icon = ICONS[notification.kind] ?? Bell;
         const unread = notification.readAt === null;
@@ -79,13 +80,15 @@ export function NotificationList({ initial }: { initial: NotificationDto[] }) {
           <li key={notification.id}>
             <Link
               href={hrefFor(notification)}
+              transitionTypes={NAV_FORWARD}
               className={cn(
-                "flex items-start gap-3 rounded-card border px-4 py-3.5 transition hover:border-line-strong",
+                "flex items-start gap-3 rounded-card border px-4 py-3.5 transition duration-300 hover:-translate-y-0.5 hover:border-line-strong active:scale-[0.99]",
                 unread ? "border-brand-fg/30 bg-brand-soft" : "border-line bg-surface",
               )}
             >
-              <span className={cn("mt-0.5 grid size-9 shrink-0 place-items-center rounded-full", unread ? "bg-brand text-brand-ink" : "bg-well text-ink-3")}>
-                <Icon className="size-4" />
+              <span className={cn("relative mt-0.5 grid size-9 shrink-0 place-items-center rounded-full", unread ? "bg-brand text-brand-ink" : "bg-well text-ink-3")}>
+                <Icon className={cn("size-4", unread && "animate-pop")} />
+                {unread ? <span aria-hidden="true" className="animate-live absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-brand-soft bg-accent text-accent" /> : null}
               </span>
               <span className="min-w-0 flex-1">
                 <span className={cn("block text-sm", unread ? "font-semibold" : "text-ink-2")}>{text(notification)}</span>
@@ -93,7 +96,7 @@ export function NotificationList({ initial }: { initial: NotificationDto[] }) {
                   <span className="mt-0.5 block text-[13px] text-ink-3">“{notification.data.reason}”</span>
                 ) : null}
                 <span className="mt-1 block text-xs text-ink-3" suppressHydrationWarning>
-                  {now ? formatRelative(notification.createdAt, locale, now) : ""}
+                  {now ? formatSince(notification.createdAt, locale, now) : ""}
                 </span>
               </span>
             </Link>

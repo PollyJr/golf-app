@@ -99,12 +99,33 @@ export function TrendChart({ points, label }: TrendChartProps) {
             </g>
           ))}
 
-          {area ? <path d={area} fill="var(--chart-line)" opacity={0.1} /> : null}
-          <path d={line} fill="none" stroke="var(--chart-line)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          {/* The line draws itself from the first round to the last; the area and markers follow. */}
+          {area ? <path d={area} fill="var(--chart-line)" opacity={0.1} className="animate-fade-in" style={{ animationDelay: "500ms", animationDuration: "700ms" }} /> : null}
+          <path
+            d={line}
+            fill="none"
+            stroke="var(--chart-line)"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            pathLength={1}
+            strokeDasharray={1}
+            className="animate-draw"
+          />
 
           {points.map((point, index) =>
             showAllMarkers || index === points.length - 1 ? (
-              <circle key={point.roundId} cx={x(index)} cy={y(point.per9)} r={4} fill="var(--chart-line)" stroke="var(--surface)" strokeWidth={2} />
+              <circle
+                key={point.roundId}
+                cx={x(index)}
+                cy={y(point.per9)}
+                r={4}
+                fill="var(--chart-line)"
+                stroke="var(--surface)"
+                strokeWidth={2}
+                className="animate-scale-in"
+                style={{ transformBox: "fill-box", transformOrigin: "center", animationDelay: `${Math.round(200 + (index / Math.max(1, points.length - 1)) * 900)}ms` }}
+              />
             ) : null,
           )}
 
@@ -116,7 +137,7 @@ export function TrendChart({ points, label }: TrendChartProps) {
           ) : null}
 
           {/* The latest value, labelled at the end of the line. */}
-          <text x={x(points.length - 1) + 10} y={y(last.per9)} dy="0.32em" fontSize={13} fontWeight={700} fill="var(--ink)">
+          <text x={x(points.length - 1) + 10} y={y(last.per9)} dy="0.32em" fontSize={13} fontWeight={700} fill="var(--ink)" className="animate-fade-in" style={{ animationDelay: "1100ms" }}>
             {formatSigned(last.per9, locale)}
           </text>
 

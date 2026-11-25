@@ -9,6 +9,7 @@ import { getT } from "@/server/i18n";
 import { getClubDetails } from "@/server/services/clubs";
 import { listCourses } from "@/server/services/courses";
 import { listNews } from "@/server/services/news";
+import { NAV_FORWARD } from "@/components/motion/page-transition";
 
 export const metadata: Metadata = { title: "Club" };
 
@@ -44,7 +45,7 @@ export default async function ClubPage() {
         <section>
           <SectionHeading title={t("app.club.news")} />
           {news.length > 0 ? (
-            <ul className="flex flex-col gap-2.5">
+            <ul className="stagger-children flex flex-col gap-2.5">
               {news.map((item) => (
                 <li key={item.id}>
                   <NewsRow item={item} {...format} />
@@ -58,7 +59,7 @@ export default async function ClubPage() {
           <div className="mt-8">
             <SectionHeading title={t("app.club.rules")} />
             {rules.length > 0 ? (
-              <div className="flex flex-col gap-2.5">
+              <div className="stagger-children flex flex-col gap-2.5">
                 {rules.map((rule) => (
                   <details key={rule.id} className="group rounded-card border border-line bg-surface shadow-card">
                     <summary className="flex items-center justify-between gap-3 px-4 py-3.5 font-semibold">
@@ -128,7 +129,7 @@ export default async function ClubPage() {
             />
             <Card padding="none" className="divide-y divide-line">
               {courses.map((course) => (
-                <Link key={course.id} href={`/app/courses/${course.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-well">
+                <Link key={course.id} href={`/app/courses/${course.id}`} transitionTypes={NAV_FORWARD} className="flex items-center gap-3 px-4 py-3 hover:bg-well">
                   <LandPlot className="size-4 text-ink-3" />
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">{course.name}</span>
                   <span className="text-xs text-ink-3">

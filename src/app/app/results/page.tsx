@@ -18,7 +18,7 @@ export default async function ResultsPage() {
     <>
       <PageHeader eyebrow={t("app.results.eyebrow")} title={t("app.results.title")} description={t("app.results.lead")} />
       {rounds.length > 0 ? (
-        <ul className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+        <ul className="stagger-children grid grid-cols-1 gap-2.5 lg:grid-cols-2">
           {rounds.map((round) => (
             <li key={round.id}>
               <RoundRow round={round} t={t} locale={locale} timeZone={session.club.timeZone} />

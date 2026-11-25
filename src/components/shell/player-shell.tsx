@@ -17,6 +17,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Wordmark } from "@/components/brand";
+import { NAV_TAB, PageTransition } from "@/components/motion/page-transition";
 import { SignOutButton } from "@/components/preferences";
 import { useT } from "@/components/providers";
 import { useOverview } from "@/components/shell/overview";
@@ -70,7 +71,13 @@ export function PlayerShell({ user, clubName, children }: PlayerShellProps) {
   // The live scorecard is a focused, full-screen task: no chrome around it.
   const focused = /^\/app\/play\/[^/]+/.test(pathname) || pathname === "/app/welcome";
 
-  if (focused) return <main id="content">{children}</main>;
+  if (focused) {
+    return (
+      <main id="content">
+        <PageTransition>{children}</PageTransition>
+      </main>
+    );
+  }
 
   return (
     <div className="lg:grid lg:min-h-dvh lg:grid-cols-[16.5rem_minmax(0,1fr)]">
@@ -89,6 +96,7 @@ export function PlayerShell({ user, clubName, children }: PlayerShellProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                transitionTypes={NAV_TAB}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex h-11 items-center gap-3 rounded-control px-3 text-sm font-semibold transition",
@@ -107,6 +115,7 @@ export function PlayerShell({ user, clubName, children }: PlayerShellProps) {
         <div className="mt-auto flex flex-col gap-1 border-t border-line pt-4">
           <Link
             href="/app/notifications"
+            transitionTypes={NAV_TAB}
             className={cn(
               "flex h-11 items-center gap-3 rounded-control px-3 text-sm font-semibold transition",
               pathname.startsWith("/app/notifications") ? "bg-well text-ink" : "text-ink-2 hover:bg-well hover:text-ink",
@@ -119,7 +128,7 @@ export function PlayerShell({ user, clubName, children }: PlayerShellProps) {
             ) : null}
           </Link>
           <div className="flex items-center gap-2">
-            <Link href="/app/profile" className="flex min-w-0 flex-1 items-center gap-3 rounded-control px-2 py-2 hover:bg-well">
+            <Link href="/app/profile" transitionTypes={NAV_TAB} className="flex min-w-0 flex-1 items-center gap-3 rounded-control px-2 py-2 hover:bg-well">
               <Avatar name={user.name} initials={user.initials} size="sm" />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold">{user.name}</span>
@@ -132,19 +141,26 @@ export function PlayerShell({ user, clubName, children }: PlayerShellProps) {
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        <header className="safe-top sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur-md lg:hidden">
+        <header
+          className="safe-top sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur-md lg:hidden"
+          style={{ viewTransitionName: "shell-header" }}
+        >
           <div className="flex h-14 items-center justify-between gap-3 px-4">
             <Link href="/app" className="min-w-0">
               <Wordmark name={clubName} />
             </Link>
             <Link
               href="/app/notifications"
+              transitionTypes={NAV_TAB}
               aria-label={t("common.nav.notifications")}
               className="relative grid size-10 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-well"
             >
               <Bell className="size-5" />
               {overview.unread > 0 ? (
-                <span className="font-score absolute top-0.5 right-0.5 grid h-[1.1rem] min-w-[1.1rem] place-items-center rounded-full bg-over px-1 text-[10px] text-surface">
+                <span
+                  key={overview.unread}
+                  className="font-score animate-pop absolute top-0.5 right-0.5 grid h-[1.1rem] min-w-[1.1rem] place-items-center rounded-full bg-over px-1 text-[10px] text-surface"
+                >
                   {overview.unread > 9 ? "9+" : overview.unread}
                 </span>
               ) : null}
@@ -153,13 +169,14 @@ export function PlayerShell({ user, clubName, children }: PlayerShellProps) {
         </header>
 
         <main id="content" className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-32 sm:px-6 lg:px-10 lg:pt-10 lg:pb-16">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </main>
       </div>
 
       <nav
         aria-label={t("common.appName")}
         className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-2 pt-1.5 backdrop-blur-md lg:hidden"
+        style={{ viewTransitionName: "shell-tabbar" }}
       >
         <ul className="mx-auto grid max-w-md grid-cols-5 items-end">
           {TABS.map((item) => {
@@ -169,21 +186,27 @@ export function PlayerShell({ user, clubName, children }: PlayerShellProps) {
               <li key={item.href} className="flex justify-center">
                 <Link
                   href={item.href}
+                  transitionTypes={NAV_TAB}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative flex w-full flex-col items-center gap-1 rounded-xl py-1.5 text-[10.5px] font-semibold transition",
+                    "relative flex w-full flex-col items-center gap-1 rounded-xl py-1.5 text-[10.5px] font-semibold transition active:scale-95",
                     primary ? "text-ink" : active ? "text-brand-fg" : "text-ink-3",
                   )}
                 >
                   {primary ? (
-                    <span className="-mt-6 grid size-14 place-items-center rounded-full bg-accent text-accent-ink shadow-[0_6px_18px_-6px_rgb(0_0_0/0.45)] ring-4 ring-surface">
+                    <span className="-mt-6 grid size-14 place-items-center rounded-full bg-accent text-accent-ink shadow-[0_6px_18px_-6px_rgb(0_0_0/0.45)] ring-4 ring-surface transition-transform duration-300 ease-(--ease-spring) active:scale-90">
                       <item.icon className="size-6" />
                       {openRounds > 0 ? (
-                        <span className="absolute top-[-1.35rem] right-[calc(50%-1.9rem)] size-3.5 rounded-full border-2 border-surface bg-over" />
+                        <span className="animate-live absolute top-[-1.35rem] right-[calc(50%-1.9rem)] size-3.5 rounded-full border-2 border-surface bg-over text-over" />
                       ) : null}
                     </span>
                   ) : (
-                    <item.icon className={cn("size-[1.35rem]", active && "stroke-[2.4]")} />
+                    <span className="relative grid place-items-center">
+                      {active ? (
+                        <span aria-hidden="true" className="animate-scale-in absolute -inset-x-3 -inset-y-1 rounded-full bg-brand-soft" />
+                      ) : null}
+                      <item.icon key={String(active)} className={cn("relative size-[1.35rem]", active && "animate-pop stroke-[2.4]")} />
+                    </span>
                   )}
                   <span>{t(item.label)}</span>
                 </Link>

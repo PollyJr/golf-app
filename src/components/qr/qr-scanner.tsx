@@ -150,8 +150,10 @@ export function QrScanner({ onScan }: { onScan: ScanHandler }) {
           // Viewfinder corners; the camera image underneath stays visible.
           <div aria-hidden="true" className="pointer-events-none absolute inset-[16%]">
             {["top-0 left-0 border-t-4 border-l-4 rounded-tl-xl", "top-0 right-0 border-t-4 border-r-4 rounded-tr-xl", "bottom-0 left-0 border-b-4 border-l-4 rounded-bl-xl", "right-0 bottom-0 border-r-4 border-b-4 rounded-br-xl"].map((corner) => (
-              <span key={corner} className={`absolute size-10 border-accent ${corner}`} />
+              <span key={corner} className={`animate-scale-in absolute size-10 border-accent ${corner}`} />
             ))}
+            {/* A scanning line sweeps the frame while the camera looks for a code. */}
+            <span className="animate-scan absolute inset-x-[6%] h-0.5 rounded-full bg-accent shadow-[0_0_14px_3px_color-mix(in_oklab,var(--accent)_55%,transparent)]" />
           </div>
         ) : (
           <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-[#ecf1e8]">
@@ -164,7 +166,7 @@ export function QrScanner({ onScan }: { onScan: ScanHandler }) {
       </div>
 
       {message ? (
-        <p role="alert" className="rounded-control bg-over-soft px-3.5 py-2.5 text-center text-sm font-medium text-over">
+        <p key={message} role="alert" className="animate-shake rounded-control bg-over-soft px-3.5 py-2.5 text-center text-sm font-medium text-over">
           {message}
         </p>
       ) : null}

@@ -11,7 +11,7 @@ interface RankedBarsProps {
 export function RankedBars({ rows, unit }: RankedBarsProps) {
   const max = rows.reduce((highest, row) => Math.max(highest, row.value), 0);
   return (
-    <ul className="flex flex-col gap-3.5">
+    <ul className="stagger-children flex flex-col gap-3.5">
       {rows.map((row) => (
         <li key={row.name} title={`${row.name}: ${unit(row.value)}`}>
           <div className="flex items-baseline justify-between gap-3">
@@ -23,7 +23,7 @@ export function RankedBars({ rows, unit }: RankedBarsProps) {
           </div>
           <div className="mt-1.5 h-2.5" aria-hidden="true">
             {row.value > 0 ? (
-              <div className="h-full min-w-1 rounded-r-[4px] bg-brand-fg" style={{ width: `${(row.value / max) * 100}%` }} />
+              <div className="animate-grow-x origin-start h-full min-w-1 rounded-r-[4px] bg-brand-fg" style={{ width: `${(row.value / max) * 100}%` }} />
             ) : (
               <div className="h-full w-px bg-line-strong" />
             )}

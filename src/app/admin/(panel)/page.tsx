@@ -64,7 +64,7 @@ export default async function AdminDashboardPage() {
         </section>
       ) : null}
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <section className="stagger-children grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat label={t("admin.dashboard.kpi.activePlayers")} value={dashboard.activePlayers} />
         <Stat
           label={t("admin.dashboard.kpi.roundsWeek")}
@@ -121,7 +121,7 @@ export default async function AdminDashboardPage() {
         <Card padding="lg">
           <SectionHeading title={t("admin.dashboard.topPlayers.title")} eyebrow={t("admin.dashboard.topPlayers.lead")} />
           {dashboard.topPlayers.length > 0 ? (
-            <ol className="flex flex-col">
+            <ol className="stagger-children flex flex-col">
               {dashboard.topPlayers.map((player, index) => (
                 <li key={player.id} className="flex items-center gap-3 border-b border-line py-2.5 last:border-b-0">
                   <span className="font-score w-5 text-center text-base text-ink-3">{index + 1}</span>
@@ -148,7 +148,7 @@ export default async function AdminDashboardPage() {
           }
         />
         {activity.length > 0 ? (
-          <ul className="flex flex-col">
+          <ul className="stagger-children flex flex-col">
             {activity.map((entry) => (
               <li key={entry.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-line py-2.5 last:border-b-0">
                 <span className="text-sm">

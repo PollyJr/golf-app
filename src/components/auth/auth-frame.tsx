@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Wordmark } from "@/components/brand";
 import { ScoreMark } from "@/components/golf/score-mark";
 import { LanguageSwitch } from "@/components/preferences";
+import { cn } from "@/lib/cn";
 import { clubThemeStyle } from "@/lib/theme";
 import type { ClubBranding } from "@/lib/types";
 
@@ -29,12 +30,12 @@ export function AuthFrame({ club, eyebrow, title, lead, features, children }: Au
           <LanguageSwitch variant="compact" />
         </div>
 
-        <div className="max-w-xl">
+        <div className="stagger-children max-w-xl">
           <p className="font-label text-[11px] text-accent">{eyebrow}</p>
           <h1 className="font-display mt-4 text-[clamp(2.4rem,7.5vw,4.6rem)] text-balance">{title}</h1>
           <p className="mt-5 max-w-md text-[15px] leading-relaxed text-pretty opacity-80 sm:text-base">{lead}</p>
           {features ? (
-            <ul className="mt-8 hidden flex-col gap-3 sm:flex">
+            <ul className="stagger-children mt-8 hidden flex-col gap-3 [--stagger-step:60ms] sm:flex">
               {features.map((feature) => (
                 <li key={feature} className="flex items-center gap-3 text-sm font-medium">
                   <span className="size-1.5 rounded-full bg-accent" aria-hidden="true" />
@@ -47,14 +48,22 @@ export function AuthFrame({ club, eyebrow, title, lead, features, children }: Au
 
         {/* A strip of scorecard notation: the product in one glance. */}
         <div aria-hidden="true" className="hidden items-center gap-2 lg:flex" style={{ ["--surface" as string]: "var(--brand)", ["--under" as string]: "var(--accent)", ["--over" as string]: "#f3b9a4", ["--ink" as string]: "var(--brand-ink)", ["--gold" as string]: "var(--accent)" }}>
+          {/* The marks drop onto the card one hole at a time. */}
           {SAMPLE_CARD.map((strokes, index) => (
-            <ScoreMark key={index} strokes={strokes} par={3} size="md" className={strokes === 1 ? "!text-accent-ink" : undefined} />
+            <ScoreMark
+              key={index}
+              strokes={strokes}
+              par={3}
+              size="md"
+              className={cn("animate-score-in", strokes === 1 && "!text-accent-ink")}
+              style={{ animationDelay: `${500 + index * 90}ms` }}
+            />
           ))}
         </div>
       </section>
 
       <section className="flex items-start justify-center px-5 py-8 sm:px-10 lg:items-center lg:py-12">
-        <div className="w-full max-w-md">{children}</div>
+        <div className="animate-rise w-full max-w-md [animation-delay:150ms]">{children}</div>
       </section>
     </div>
   );

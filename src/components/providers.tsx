@@ -1,12 +1,13 @@
 "use client";
 
 import { CheckCircle2, CircleAlert, X } from "lucide-react";
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { DEFAULT_TIME_ZONE } from "@/lib/format";
 import { createTranslator, type Locale } from "@/lib/i18n/core";
 import { dictionaries, type AppTranslate } from "@/lib/i18n/dictionaries";
 import { ApiError } from "@/lib/api-client";
+import { markHydrated } from "@/hooks/use-motion";
 
 // ------------------------------------------------------------------ i18n --
 
@@ -63,6 +64,8 @@ interface ToastItem {
   id: number;
   tone: ToastTone;
   message: string;
+  /** Playing its exit animation. */
+  leaving?: boolean;
 }
 
 interface ToastApi {
@@ -79,6 +82,7 @@ export function useToast(): ToastApi {
 }
 
 const TOAST_MS = 4200;
+const TOAST_EXIT_MS = 260;
 
 function Toasts({ items, dismiss }: { items: ToastItem[]; dismiss: (id: number) => void }) {
   return (
@@ -91,7 +95,8 @@ function Toasts({ items, dismiss }: { items: ToastItem[]; dismiss: (id: number) 
           key={item.id}
           role={item.tone === "error" ? "alert" : "status"}
           className={cn(
-            "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border px-4 py-3 text-sm font-medium shadow-pop animate-rise",
+            "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border px-4 py-3 text-sm font-medium shadow-pop",
+            item.leaving ? "animate-toast-out" : "animate-toast-in",
             item.tone === "success" ? "border-transparent bg-brand text-brand-ink" : "border-danger/30 bg-danger-soft text-danger",
           )}
         >
@@ -118,7 +123,11 @@ export function AppProviders({ locale, timeZone = DEFAULT_TIME_ZONE, children }:
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextId = useRef(1);
 
-  const dismiss = useCallback((id: number) => setToasts((items) => items.filter((item) => item.id !== id)), []);
+  // A toast first plays its exit animation, then leaves the list.
+  const dismiss = useCallback((id: number) => {
+    setToasts((items) => items.map((item) => (item.id === id ? { ...item, leaving: true } : item)));
+    window.setTimeout(() => setToasts((items) => items.filter((item) => item.id !== id)), TOAST_EXIT_MS);
+  }, []);
   const push = useCallback(
     (tone: ToastTone, message: string) => {
       const id = nextId.current++;
@@ -132,6 +141,9 @@ export function AppProviders({ locale, timeZone = DEFAULT_TIME_ZONE, children }:
     () => ({ locale, timeZone, t: createTranslator(dictionaries[locale], locale) }),
     [locale, timeZone],
   );
+  // From here on, things that appear may animate in (see use-motion.ts).
+  useEffect(() => markHydrated(), []);
+
   const toast = useMemo<ToastApi>(
     () => ({ success: (message) => push("success", message), error: (message) => push("error", message) }),
     [push],

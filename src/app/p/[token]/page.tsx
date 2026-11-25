@@ -72,7 +72,7 @@ export default async function PlayerQrPage({ params }: { params: Promise<{ token
       {self ? (
         <EmptyState title={t("play.qr.thisIsYou")} />
       ) : (
-        <div className="flex flex-col gap-2.5">
+        <div className="stagger-children flex flex-col gap-2.5">
           {rounds.map((round) => (
             <AddToRoundButton key={round.id} roundId={round.id} qrToken={token} label={t("play.qr.addToRound", { course: round.courseName })} />
           ))}

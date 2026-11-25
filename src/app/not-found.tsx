@@ -5,9 +5,13 @@ import { getT } from "@/server/i18n";
 export default async function NotFound() {
   const { t } = await getT();
   return (
-    <div className="mx-auto flex min-h-dvh max-w-md flex-col items-start justify-center gap-6 px-6">
+    <div className="stagger-children mx-auto flex min-h-dvh max-w-md flex-col items-start justify-center gap-6 px-6">
       <Wordmark />
-      <p className="font-score text-[7rem] leading-none text-ink-3/40">404</p>
+      {/* The ball that went out of bounds, still rolling. */}
+      <p className="font-score relative text-[7rem] leading-none text-ink-3/40">
+        404
+        <span aria-hidden="true" className="animate-float absolute -top-2 -right-7 size-5 rounded-full border border-line-strong bg-surface shadow-card" />
+      </p>
       <div>
         <h1 className="font-display text-4xl">{t("pub.notFound.title")}</h1>
         <p className="mt-2 text-ink-2">{t("pub.notFound.lead")}</p>

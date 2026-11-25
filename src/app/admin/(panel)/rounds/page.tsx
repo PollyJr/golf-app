@@ -9,6 +9,7 @@ import type { RoundStatus } from "@/lib/types";
 import { requireStaff } from "@/server/auth/guards";
 import { getT } from "@/server/i18n";
 import { countPendingRounds, listRoundsForStaff } from "@/server/services/rounds";
+import { NAV_FORWARD } from "@/components/motion/page-transition";
 
 export const metadata: Metadata = { title: "Rondes" };
 
@@ -59,7 +60,7 @@ export default async function AdminRoundsPage({ searchParams }: { searchParams: 
       ) : tab === "pending" ? (
         <RoundReviewQueue rounds={rounds} />
       ) : (
-        <ul className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <ul className="stagger-children grid grid-cols-1 gap-4 xl:grid-cols-2">
           {rounds.map((round) => (
             <li key={round.id}>
               <RoundCard
@@ -69,7 +70,7 @@ export default async function AdminRoundsPage({ searchParams }: { searchParams: 
                 timeZone={session.club.timeZone}
                 showStatus={tab === "all"}
                 actions={
-                  <LinkButton variant="ghost" size="sm" href={`/admin/rounds/${round.id}`}>
+                  <LinkButton variant="ghost" size="sm" href={`/admin/rounds/${round.id}`} transitionTypes={NAV_FORWARD}>
                     {t("admin.rounds.view")}
                     <ChevronRight className="size-4" />
                   </LinkButton>

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { cn } from "@/lib/cn";
 import { formatToPar, scoreKind, type ScoreKind } from "@/lib/golf/scoring";
 
@@ -35,12 +36,13 @@ interface ScoreMarkProps {
   /** Text for assistive technology, e.g. "Birdie". */
   label?: string;
   className?: string;
+  style?: CSSProperties;
 }
 
-export function ScoreMark({ strokes, par, size = "md", label, className }: ScoreMarkProps) {
+export function ScoreMark({ strokes, par, size = "md", label, className, style }: ScoreMarkProps) {
   if (strokes === null) {
     return (
-      <span className={cn("font-score inline-grid place-items-center text-ink-3/60", SIZES[size], className)} aria-label={label}>
+      <span className={cn("font-score inline-grid place-items-center text-ink-3/60", SIZES[size], className)} style={style} aria-label={label}>
         ·
       </span>
     );
@@ -48,6 +50,7 @@ export function ScoreMark({ strokes, par, size = "md", label, className }: Score
   return (
     <span
       className={cn("font-score inline-grid place-items-center", SIZES[size], SHAPES[scoreKind(strokes, par)], className)}
+      style={style}
       title={label}
     >
       {strokes}

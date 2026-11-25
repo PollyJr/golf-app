@@ -49,7 +49,7 @@ export default async function ProfilePage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="stagger-children grid grid-cols-2 gap-3">
         <Card padding="sm">
           <p className="font-label text-[10.5px] text-ink-3">{t("app.profile.code")}</p>
           <p className="font-score mt-2 text-2xl tracking-[0.04em] select-all">{session.user.code}</p>

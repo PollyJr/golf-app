@@ -86,10 +86,13 @@ export function HoleBars({ holes, label }: HoleBarsProps) {
                 {flat ? (
                   <rect x={center - barWidth / 2} y={baseline - 1} width={barWidth} height={2} fill="var(--chart-neutral)" />
                 ) : (
+                  // Each column grows out of the par line, one after another.
                   <path
                     d={columnPath(center - barWidth / 2, barWidth, baseline, tip)}
                     fill={hole.toPar > 0 ? "var(--chart-over-1)" : "var(--chart-under)"}
                     opacity={active === null || active === index ? 1 : 0.55}
+                    className="animate-grow-y transition-opacity duration-200"
+                    style={{ transformBox: "fill-box", transformOrigin: tip < baseline ? "bottom" : "top", animationDelay: `${index * 45}ms` }}
                   />
                 )}
                 {labelled ? (

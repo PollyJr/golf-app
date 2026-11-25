@@ -29,14 +29,14 @@ export function Distribution({ distribution, t, locale }: DistributionProps) {
 
   return (
     <div>
-      <div role="img" aria-label={summary} className="flex h-2 gap-0.5 overflow-hidden rounded-full">
+      <div role="img" aria-label={summary} className="animate-grow-x origin-start flex h-2 gap-0.5 overflow-hidden rounded-full">
         {parts
           .filter((part) => part.count > 0)
           .map((part) => (
             <span key={part.key} title={`${part.label}: ${part.count}`} style={{ flexGrow: part.count, backgroundColor: part.color }} className="h-full min-w-1 basis-0" />
           ))}
       </div>
-      <dl className="mt-4 grid gap-x-8 gap-y-2.5 sm:grid-cols-2">
+      <dl className="stagger-children mt-4 grid gap-x-8 gap-y-2.5 sm:grid-cols-2">
         {parts.map((part) => (
           <div key={part.key} className="flex items-center gap-3 text-sm">
             <span className="size-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: part.color }} aria-hidden="true" />

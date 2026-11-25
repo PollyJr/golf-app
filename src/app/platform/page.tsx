@@ -34,7 +34,7 @@ export default async function PlatformPage() {
 
       <main className="mx-auto w-full max-w-6xl px-4 pt-8 pb-16 sm:px-6 lg:px-10">
         <PageHeader eyebrow={t("admin.platform.label")} title={t("admin.platform.title")} description={t("admin.platform.lead")} />
-        <section className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section className="stagger-children mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label={t("admin.platform.totals.clubs")} value={totals.clubs} />
           <Stat label={t("admin.platform.totals.players")} value={totals.players} />
           <Stat label={t("admin.platform.totals.rounds")} value={totals.rounds} />

@@ -1,4 +1,8 @@
+"use client";
+
 import { ScoreMark } from "./score-mark";
+import { TickNumber } from "@/components/motion/animated-number";
+import { useChangeCount } from "@/hooks/use-motion";
 import { cn } from "@/lib/cn";
 import { totalStrokes, type HoleInfo, type Strokes } from "@/lib/golf/scoring";
 
@@ -25,6 +29,8 @@ interface ScorecardTableProps {
   labels: ScorecardLabels;
   /** 0-based hole to highlight, e.g. the one being played. */
   activeHole?: number;
+  /** Scores come in while it is on screen: new ones pop in and light up. */
+  live?: boolean;
   className?: string;
 }
 
@@ -45,7 +51,7 @@ function sum(values: readonly Strokes[]): number | null {
  * The full card in scorecard notation. Eighteen holes are shown as two nines
  * stacked, which stays readable on a phone without sideways scrolling.
  */
-export function ScorecardTable({ holes, rows, labels, activeHole, className }: ScorecardTableProps) {
+export function ScorecardTable({ holes, rows, labels, activeHole, live = false, className }: ScorecardTableProps) {
   const halves = holes.length > NINE ? [0, NINE] : [0];
   const showGrandTotal = halves.length > 1;
 
@@ -66,9 +72,16 @@ export function ScorecardTable({ holes, rows, labels, activeHole, className }: S
                     <th
                       key={hole.number}
                       scope="col"
-                      className={cn("pb-1.5 font-[inherit]", activeHole === start + index && "text-brand-fg")}
+                      aria-current={activeHole === start + index ? "true" : undefined}
+                      className={cn("pb-1.5 font-[inherit] transition-colors duration-300", activeHole === start + index && "text-brand-fg")}
                     >
-                      {hole.number}
+                      {activeHole === start + index && live ? (
+                        <span key={hole.number} className="animate-pop inline-grid size-5 place-items-center rounded-full bg-brand text-brand-ink">
+                          {hole.number}
+                        </span>
+                      ) : (
+                        hole.number
+                      )}
                     </th>
                   ))}
                   <th scope="col" className="w-10 pb-1.5 pr-1 text-right font-[inherit] sm:w-14">
@@ -105,12 +118,10 @@ export function ScorecardTable({ holes, rows, labels, activeHole, className }: S
                         {row.suffix ? <span className="ml-1 font-normal text-ink-3">{row.suffix}</span> : null}
                       </th>
                       {slice.map((hole, index) => (
-                        <td key={hole.number} className="border-b border-line py-2">
-                          <ScoreMark strokes={scores[index] ?? null} par={hole.par} size="sm" />
-                        </td>
+                        <ScoreCell key={hole.number} strokes={scores[index] ?? null} par={hole.par} live={live} />
                       ))}
                       <td className="font-score border-b border-line py-2 pr-2 text-right text-base last:rounded-r-lg">
-                        {subtotal ?? "–"}
+                        {live && subtotal !== null ? <TickNumber value={subtotal} /> : (subtotal ?? "–")}
                       </td>
                     </tr>
                   );
@@ -126,11 +137,25 @@ export function ScorecardTable({ holes, rows, labels, activeHole, className }: S
           {rows.map((row) => (
             <div key={row.id} className="flex items-baseline justify-between gap-3 px-1">
               <dt className="truncate text-[13px] font-semibold">{row.name}</dt>
-              <dd className="font-score text-lg">{sum(row.scores) ?? "–"}</dd>
+              <dd className="font-score text-lg">{live && sum(row.scores) !== null ? <TickNumber value={sum(row.scores) ?? 0} /> : (sum(row.scores) ?? "–")}</dd>
             </div>
           ))}
         </dl>
       ) : null}
     </div>
+  );
+}
+
+/** One hole of one player; a score that arrives while you watch pops in. */
+function ScoreCell({ strokes, par, live }: { strokes: Strokes; par: number; live: boolean }) {
+  const changes = useChangeCount(strokes);
+  const fresh = live && changes > 0 && strokes !== null;
+  return (
+    <td className="relative border-b border-line py-2">
+      {fresh ? <span key={`flash-${changes}`} aria-hidden="true" className="animate-flash pointer-events-none absolute inset-0.5 rounded-md" /> : null}
+      <span key={changes} className={cn("relative inline-grid", fresh && "animate-score-in")}>
+        <ScoreMark strokes={strokes} par={par} size="sm" />
+      </span>
+    </td>
   );
 }

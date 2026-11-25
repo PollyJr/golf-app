@@ -11,6 +11,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { TextAreaField } from "@/components/ui/form";
 import { api } from "@/lib/api-client";
 import type { AdminRoundRow } from "@/lib/types";
+import { NAV_FORWARD } from "@/components/motion/page-transition";
 
 interface RejectDialogProps {
   roundId: string | null;
@@ -110,7 +111,7 @@ export function RoundReviewQueue({ rounds }: { rounds: AdminRoundRow[] }) {
               timeZone={timeZone}
               actions={
                 <>
-                  <LinkButton variant="ghost" size="sm" href={`/admin/rounds/${round.id}`} className="mr-auto">
+                  <LinkButton variant="ghost" size="sm" href={`/admin/rounds/${round.id}`} transitionTypes={NAV_FORWARD} className="mr-auto">
                     {t("admin.rounds.view")}
                     <ChevronRight className="size-4" />
                   </LinkButton>

@@ -16,6 +16,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Wordmark } from "@/components/brand";
+import { NAV_TAB, PageTransition } from "@/components/motion/page-transition";
 import { LanguageSwitch, SignOutButton } from "@/components/preferences";
 import { useT } from "@/components/providers";
 import { Avatar } from "@/components/ui/avatar";
@@ -57,7 +58,7 @@ function isActive(pathname: string, href: string): boolean {
 function CountBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
-    <span className="font-score ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] text-accent-ink">
+    <span key={count} className="font-score animate-pop ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] text-accent-ink">
       {count > 99 ? "99+" : count}
     </span>
   );
@@ -98,6 +99,7 @@ export function AdminShell({ clubName, user, isOwner, badges, children }: AdminS
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    transitionTypes={NAV_TAB}
                     aria-current={active ? "page" : undefined}
                     className={cn(
                       "flex h-11 items-center gap-3 rounded-control px-3 text-sm font-semibold transition",
@@ -137,7 +139,10 @@ export function AdminShell({ clubName, user, isOwner, badges, children }: AdminS
         </div>
       </aside>
 
-      <header className="safe-top sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur lg:hidden print:hidden">
+      <header
+        className="safe-top sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur lg:hidden print:hidden"
+        style={{ viewTransitionName: "shell-header" }}
+      >
         <div className="flex h-14 items-center justify-between gap-3 px-4">
           <Link href="/admin" aria-label={clubName} className="block min-w-0 flex-1">
             <Wordmark name={clubName} className="flex" />
@@ -163,6 +168,7 @@ export function AdminShell({ clubName, user, isOwner, badges, children }: AdminS
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    transitionTypes={NAV_TAB}
                     aria-current={active ? "page" : undefined}
                     className={cn(
                       "flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold whitespace-nowrap transition",
@@ -181,7 +187,9 @@ export function AdminShell({ clubName, user, isOwner, badges, children }: AdminS
       </header>
 
       <main id="admin-content" className="lg:pl-64 print:pl-0">
-        <div className="mx-auto w-full max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-10">{children}</div>
+        <div className="mx-auto w-full max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-10">
+          <PageTransition>{children}</PageTransition>
+        </div>
       </main>
     </div>
   );

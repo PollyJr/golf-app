@@ -13,6 +13,9 @@ import { cn } from "@/lib/cn";
 import { formatNumber, formatSigned } from "@/lib/format";
 import type { HoleCount } from "@/lib/golf/scoring";
 import { LEADERBOARD_CATEGORIES, PERIODS, type LeaderboardCategory, type LeaderboardEntry, type Period } from "@/lib/types";
+import { TickNumber } from "@/components/motion/animated-number";
+import { NAV_FORWARD } from "@/components/motion/page-transition";
+import { useFlip } from "@/hooks/use-motion";
 
 interface LeaderboardProps {
   initial: LeaderboardEntry[];
@@ -34,6 +37,8 @@ export function Leaderboard({ initial, initialQuery, courses, meId }: Leaderboar
   const [entries, setEntries] = useState(initial);
   const [loading, setLoading] = useState(false);
   const first = useRef(true);
+  // Switching period or category: players glide from their old place to the new one.
+  const flip = useFlip({ enter: "slide", flash: false });
 
   useEffect(() => {
     // The server already rendered the first view.
@@ -117,7 +122,9 @@ export function Leaderboard({ initial, initialQuery, courses, meId }: Leaderboar
       <Card tone="brand" className="bg-ruled flex items-center gap-4">
         {mine ? (
           <>
-            <span className="font-score text-5xl">#{mine.rank}</span>
+            <span className="font-score text-5xl">
+              #<TickNumber value={mine.rank} />
+            </span>
             <div className="min-w-0 flex-1">
               <p className="font-label text-[10.5px] text-accent">{t("app.leaderboards.yourPosition")}</p>
               <p className="mt-0.5 truncate text-sm opacity-80">
@@ -149,8 +156,12 @@ export function Leaderboard({ initial, initialQuery, courses, meId }: Leaderboar
             </div>
             <ol>
               {entries.map((entry) => (
-                <li key={entry.playerId} className={cn("border-b border-line last:border-b-0", entry.playerId === meId && "bg-brand-soft")}>
-                  <Link href={`/app/players/${entry.playerId}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-well">
+                <li
+                  key={entry.playerId}
+                  ref={flip(entry.playerId)}
+                  className={cn("relative border-b border-line bg-surface last:border-b-0", entry.playerId === meId && "bg-brand-soft")}
+                >
+                  <Link href={`/app/players/${entry.playerId}`} transitionTypes={NAV_FORWARD} className="flex items-center gap-3 px-4 py-3 transition hover:bg-well">
                     <span className={cn("font-score w-8 text-center text-xl", entry.rank === 1 ? "text-gold" : entry.rank <= 3 ? "text-ink" : "text-ink-3")}>
                       {entry.rank}
                     </span>

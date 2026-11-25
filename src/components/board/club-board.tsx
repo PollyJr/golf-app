@@ -4,12 +4,17 @@ import { CalendarDays, Megaphone, Star, WifiOff } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { boardThemeStyle } from "./board-theme";
 import { BrandMark } from "@/components/brand";
-import { ToPar } from "@/components/golf/score-mark";
+import { ScoreMark, ToPar } from "@/components/golf/score-mark";
+import { TickNumber } from "@/components/motion/animated-number";
+import { CelebrationOverlay, useCelebrations, type Celebration } from "@/components/motion/celebration";
 import { useLocale, useT } from "@/components/providers";
 import { Avatar } from "@/components/ui/avatar";
 import { LiveDot } from "@/components/ui/badge";
 import { useLiveResource } from "@/hooks/use-live-resource";
+import { useChangeCount, useFlip } from "@/hooks/use-motion";
 import { cn } from "@/lib/cn";
+import { scoreKind } from "@/lib/golf/scoring";
+import { newHighlights } from "@/lib/live-events";
 import { dateParts, dayKey, formatLongDate, formatShortDate, formatTime } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/core";
 import type { EventDto, LeaderboardEntry } from "@/lib/types";
@@ -86,6 +91,29 @@ export function ClubBoard({ token, initial, host }: ClubBoardProps) {
   const board = data.board;
   const timeZone = board.club.timeZone;
   const now = useNow(initial.generatedAt);
+  const celebrations = useCelebrations();
+
+  // A birdie or better on the course gets a moment on the big screen.
+  const [seenLive, setSeenLive] = useState(board.live);
+  if (seenLive !== board.live) {
+    setSeenLive(board.live);
+    celebrations.push(
+      newHighlights(seenLive, board.live)
+        .slice(0, 2)
+        .map(
+          (latest): Celebration => ({
+            id: `${latest.playerId}:${latest.hole}:${latest.at}`,
+            kind: "score",
+            result: scoreKind(latest.strokes, latest.par) as Extract<Celebration, { kind: "score" }>["result"],
+            name: latest.name,
+            hole: latest.hole,
+            strokes: latest.strokes,
+            par: latest.par,
+          }),
+        ),
+    );
+  }
+  const flightsFlip = useFlip({ enter: "slide", flash: false });
 
   const periods = useMemo(
     () =>
@@ -176,7 +204,7 @@ export function ClubBoard({ token, initial, host }: ClubBoardProps) {
         ) : null}
         <div className="shrink-0 text-right xl:ml-6">
           <p className="font-score text-[2rem] text-(color:--board-accent) lg:text-[5.5rem]" suppressHydrationWarning>
-            {formatTime(now, locale, timeZone)}
+            <Ticking text={formatTime(now, locale, timeZone)} />
           </p>
           <p className="font-label mt-1 text-[9.5px] text-ink-2 lg:mt-2 lg:text-xl" suppressHydrationWarning>
             {formatLongDate(now, locale, timeZone)}
@@ -202,7 +230,9 @@ export function ClubBoard({ token, initial, host }: ClubBoardProps) {
           ) : (
             <div className="flex min-h-0 flex-1 flex-col gap-3 lg:gap-5">
               {visibleFlights.map((flight) => (
-                <Flight key={flight.id} flight={flight} />
+                <div key={flight.id} ref={flightsFlip(flight.id)}>
+                  <Flight flight={flight} />
+                </div>
               ))}
               {hiddenFlights > 0 ? (
                 <p className="font-label text-[11px] text-ink-3 lg:text-lg">{t("board.moreFlights", { count: hiddenFlights })}</p>
@@ -338,7 +368,19 @@ export function ClubBoard({ token, initial, host }: ClubBoardProps) {
           Fairway
         </span>
       </footer>
+
+      <CelebrationOverlay celebration={celebrations.current} onDone={celebrations.done} variant="tv" />
     </div>
+  );
+}
+
+/** Text that rolls over when it changes, like the minutes of the clock. */
+function Ticking({ text }: { text: string }) {
+  const changes = useChangeCount(text);
+  return (
+    <span key={changes} className={cn("inline-block", changes > 0 && "animate-tick-up")}>
+      {text}
+    </span>
   );
 }
 
@@ -408,6 +450,8 @@ function Empty({ title, lead, hero }: { title: string; lead?: string; hero?: boo
 
 function Flight({ flight }: { flight: LiveFlight }) {
   const t = useT();
+  const flip = useFlip({ enter: "pop" });
+  const latest = flight.latest;
   return (
     <article className="rounded-2xl bg-white/[0.05] p-3 lg:rounded-3xl lg:p-4">
       <p className="font-label flex items-center justify-between gap-3 text-[10px] text-ink-3 lg:text-[0.95rem]">
@@ -417,7 +461,7 @@ function Flight({ flight }: { flight: LiveFlight }) {
         </span>
       </p>
       <ul className="mt-2 flex flex-col gap-1.5 lg:mt-3 lg:gap-2">
-        {flight.players.map((player, index) => {
+        {flight.players.map((player) => {
           const status =
             player.thru === 0
               ? t("board.notStarted")
@@ -425,28 +469,55 @@ function Flight({ flight }: { flight: LiveFlight }) {
                 ? t("board.finished")
                 : t("board.thru", { count: player.thru });
           return (
-            <li key={`${player.name}-${index}`} className="flex items-center gap-3 lg:gap-4">
+            <li key={player.id} ref={flip(player.id, `${player.thru}|${player.toPar}`)} className="-mx-1.5 flex items-center gap-3 rounded-xl px-1.5 lg:gap-4">
               <Avatar name={player.name} initials={player.initials} size="sm" className="lg:size-10 lg:text-base" />
               <span className="min-w-0 flex-1 truncate text-sm font-semibold lg:text-[1.55rem]">{player.name}</span>
               <span className="font-label shrink-0 text-[10px] text-ink-3 lg:text-base">{status}</span>
-              <ToPar value={player.toPar} empty={player.thru === 0} className="w-9 shrink-0 text-right text-xl lg:w-20 lg:text-[2.4rem]" />
+              {player.thru === 0 ? (
+                <ToPar value={0} empty className="w-9 shrink-0 text-right text-xl lg:w-20 lg:text-[2.4rem]" />
+              ) : (
+                <TickNumber
+                  value={player.toPar}
+                  style="toPar"
+                  className={cn(
+                    "font-score w-9 shrink-0 text-right text-xl lg:w-20 lg:text-[2.4rem]",
+                    player.toPar < 0 && "text-under",
+                    player.toPar > 0 && "text-over",
+                  )}
+                />
+              )}
             </li>
           );
         })}
       </ul>
+      {latest ? (
+        <p
+          key={`${latest.playerId}:${latest.hole}:${latest.at}`}
+          className="animate-fade-in mt-2 flex items-center gap-2 border-t border-line pt-2 text-xs text-ink-2 lg:mt-3 lg:gap-3 lg:pt-3 lg:text-lg"
+        >
+          <span className="font-label text-[9.5px] text-ink-3 lg:text-sm">{t("board.latest")}</span>
+          <span className="min-w-0 flex-1 truncate">
+            {latest.name.split(/\s+/)[0]} · {t("common.hole")} {latest.hole} · {t(`common.scoreKind.${scoreKind(latest.strokes, latest.par)}`)}
+          </span>
+          <ScoreMark strokes={latest.strokes} par={latest.par} size="sm" className="animate-score-in lg:size-9 lg:text-lg" />
+        </p>
+      ) : null}
     </article>
   );
 }
 
 function Ranking({ rows }: { rows: LeaderboardEntry[] }) {
   const t = useT();
+  // Rows glide to their new place when a round is approved and the ranking shifts.
+  const flip = useFlip({ enter: "slide" });
   if (rows.length === 0) return <Empty hero title={t("board.emptyRanking")} lead={t("board.emptyRankingLead")} />;
   return (
     <ol className="flex min-h-0 flex-1 flex-col lg:justify-between">
       {rows.map((row, index) => (
         <li
           key={row.playerId}
-          className="flex animate-rise items-center gap-3 border-t border-line py-2 first:border-t-0 lg:gap-5 lg:py-0"
+          ref={flip(row.playerId, `${row.rank}|${row.value}|${row.toPar}`)}
+          className="flex animate-rise items-center gap-3 rounded-xl border-t border-line py-2 first:border-t-0 lg:gap-5 lg:py-0"
           style={{ animationDelay: `${index * 45}ms` }}
         >
           <span

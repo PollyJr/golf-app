@@ -272,7 +272,9 @@ export function RoundSetup({ me, courses, recentPartners, events, preselect, myQ
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-label text-[11px] text-ink-3">3 · {t("play.setup.flightHeading")}</h2>
-            <Badge tone={full ? "gold" : "neutral"}>{t("play.setup.flightCount", { count: flightSize })}</Badge>
+            <Badge key={flightSize} tone={full ? "gold" : "neutral"} className="animate-pop">
+              {t("play.setup.flightCount", { count: flightSize })}
+            </Badge>
           </div>
           <Card padding="none" className="divide-y divide-line">
             <div className="flex items-center gap-3 px-4 py-3">
@@ -285,7 +287,7 @@ export function RoundSetup({ me, courses, recentPartners, events, preselect, myQ
               </div>
             </div>
             {members.map((member) => (
-              <div key={member.id} className="flex items-center gap-3 px-4 py-3">
+              <div key={member.id} className="animate-slide-down flex items-center gap-3 px-4 py-3">
                 <Avatar name={member.name} initials={member.initials} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{member.name}</p>
@@ -302,7 +304,7 @@ export function RoundSetup({ me, courses, recentPartners, events, preselect, myQ
               </div>
             ))}
             {guests.map((guest, index) => (
-              <div key={`${guest}-${index}`} className="flex items-center gap-3 px-4 py-3">
+              <div key={`${guest}-${index}`} className="animate-slide-down flex items-center gap-3 px-4 py-3">
                 <Avatar name={guest} initials={guest.slice(0, 1).toUpperCase()} guest />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{guest}</p>

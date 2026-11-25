@@ -37,7 +37,7 @@ export default async function AdminAuditPage() {
           {days.map((day) => (
             <section key={day.key}>
               <h2 className="font-label mb-2 text-[11px] text-ink-3">{formatLongDate(day.entries[0].createdAt, locale, timeZone)}</h2>
-              <ol className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
+              <ol className="stagger-children overflow-hidden rounded-card border border-line bg-surface shadow-card">
                 {day.entries.map((entry) => (
                   <li key={entry.id} className="flex items-baseline gap-4 border-b border-line px-4 py-2.5 last:border-b-0 sm:px-5">
                     <time dateTime={entry.createdAt} className="tabular w-11 shrink-0 text-[13px] text-ink-3">

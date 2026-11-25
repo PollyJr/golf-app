@@ -4,11 +4,14 @@ import { ChevronLeft, ChevronRight, CloudOff, Ellipsis, Flag, Lightbulb, LogOut,
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { Confetti } from "@/components/motion/confetti";
+import { NAV_FORWARD } from "@/components/motion/page-transition";
 import { HoleStrip } from "./hole-strip";
 import { ShareDialog } from "./share-dialog";
 import { MatchLine, Standings } from "./standings";
 import { useScoreQueue } from "./use-score-queue";
-import { ScoreMark, ToPar } from "@/components/golf/score-mark";
+import { ScoreMark } from "@/components/golf/score-mark";
+import { TickNumber } from "@/components/motion/animated-number";
 import { AddPlayerDialog } from "@/components/qr/qr-dialogs";
 import { ScorecardTable } from "@/components/golf/scorecard-table";
 import { useErrorMessage, useT, useToast } from "@/components/providers";
@@ -17,10 +20,11 @@ import { Badge, LiveDot } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import type { Connection } from "@/hooks/use-live-resource";
+import { useDirection } from "@/hooks/use-motion";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/cn";
 import { stablefordPoints } from "@/lib/golf/formats";
-import { holesPlayed, MAX_FLIGHT_SIZE, MAX_STROKES, nextOpenHole, scoreKind, toPar, totalStrokes } from "@/lib/golf/scoring";
+import { holesPlayed, MAX_FLIGHT_SIZE, MAX_STROKES, nextOpenHole, scoreKind, toPar, totalStrokes, type HoleInfo } from "@/lib/golf/scoring";
 import type { RoundParticipantDto, RoundSnapshot } from "@/lib/types";
 
 interface LiveScorecardProps {
@@ -56,6 +60,7 @@ export function LiveScorecard({ round, connection, refresh, autoApprove }: LiveS
 
   const hole = holes[Math.min(activeHole, holes.length - 1)];
   const holeIndex = hole.number - 1;
+  const direction = useDirection(holeIndex);
   const viewer = view.viewer;
   const total = view.participants.length * view.holeCount;
   const entered = view.participants.reduce((count, participant) => count + holesPlayed(participant.scores), 0);
@@ -95,7 +100,8 @@ export function LiveScorecard({ round, connection, refresh, autoApprove }: LiveS
     setBusy(true);
     try {
       await api.post(`/api/rounds/${round.id}/submit`);
-      router.replace(`/app/results/${round.id}`);
+      // Straight from the last putt to the result, with a little fanfare.
+      router.replace(`/app/results/${round.id}?done=1`, { transitionTypes: NAV_FORWARD });
     } catch (error) {
       toast.error(errorMessage(error));
       setBusy(false);
@@ -143,7 +149,7 @@ export function LiveScorecard({ round, connection, refresh, autoApprove }: LiveS
 
       <main className="flex flex-1 flex-col gap-4 px-4 pt-4 pb-36">
         {offline ? (
-          <p role="status" className="rounded-control bg-over-soft px-3.5 py-2.5 text-[13px] font-medium text-over">
+          <p role="status" className="animate-slide-down rounded-control bg-over-soft px-3.5 py-2.5 text-[13px] font-medium text-over">
             {t("play.card.offlineNote")}
             {pendingCount > 0 ? ` ${t("play.card.queued", { count: pendingCount })}.` : null}
           </p>
@@ -186,99 +192,23 @@ export function LiveScorecard({ round, connection, refresh, autoApprove }: LiveS
         </section>
 
         {/* ----------------------------------------------------- score entry */}
-        <ul className="flex flex-col gap-3">
-          {view.participants.map((participant) => {
-            const strokes = participant.scores[holeIndex] ?? null;
-            const putts = participant.putts[holeIndex] ?? null;
-            const mine = participant.id === viewer?.participantId;
-            const played = holesPlayed(participant.scores);
-            const chips = chipCount(hole.par);
-            const beyond = strokes !== null && strokes > chips;
-            return (
-              <li key={participant.id} className={cn("rounded-card border bg-surface p-4 shadow-card", mine ? "border-brand-fg/35" : "border-line")}>
-                <div className="flex items-center gap-3">
-                  <Avatar name={participant.name} initials={participant.initials} guest={participant.guest} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">
-                      {participant.name}
-                      {mine ? <span className="font-label ml-2 text-[10px] text-brand-fg">{t("common.you")}</span> : null}
-                      {participant.guest ? <span className="font-label ml-2 text-[10px] text-ink-3">{t("common.guest")}</span> : null}
-                    </p>
-                    <p className="text-[13px] text-ink-3">
-                      {played === 0
-                        ? t("play.card.noScore")
-                        : view.format === "stableford"
-                          ? `${t("common.points", { count: participant.scores.reduce<number>((sum, value, index) => sum + (value === null ? 0 : stablefordPoints(value, pars[index])), 0) })} · ${t("common.thru", { count: played })}`
-                          : `${t("common.strokes", { count: totalStrokes(participant.scores) })} · ${t("common.thru", { count: played })}`}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    {strokes !== null ? (
-                      <p className="font-label text-[10.5px] text-ink-2">{t(`common.scoreKind.${scoreKind(strokes, hole.par)}`)}</p>
-                    ) : null}
-                    {played > 0 && view.format !== "stableford" ? <ToPar value={toPar(participant.scores, pars)} className="text-xl" /> : null}
-                  </div>
-                </div>
-
-                <div className="mt-3.5 flex items-center gap-1.5" role="group" aria-label={t("play.card.strokesFor", { name: participant.name })}>
-                  {Array.from({ length: chips }, (_, index) => index + 1).map((value) => {
-                    const selected = strokes === value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => chooseStrokes(participant, value)}
-                        className={cn(
-                          "grid h-12 min-w-0 flex-1 place-items-center rounded-xl border transition active:scale-95",
-                          selected ? "border-transparent bg-well" : "border-line bg-surface hover:bg-well",
-                          !selected && value === hole.par && "border-line-strong",
-                        )}
-                      >
-                        {selected ? (
-                          <ScoreMark strokes={value} par={hole.par} size="md" className="animate-pop" />
-                        ) : (
-                          <span className={cn("font-score text-lg", value === hole.par ? "text-ink" : "text-ink-3")}>{value}</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    aria-label={t("play.card.more")}
-                    disabled={strokes !== null && strokes >= MAX_STROKES}
-                    onClick={() => setScore({ participantId: participant.id, hole: hole.number, strokes: Math.min(MAX_STROKES, Math.max(chips, strokes ?? chips) + 1) })}
-                    className={cn(
-                      "grid h-12 min-w-0 flex-1 place-items-center rounded-xl border transition active:scale-95 disabled:opacity-40",
-                      beyond ? "border-transparent bg-well" : "border-line bg-surface text-ink-3 hover:bg-well",
-                    )}
-                  >
-                    {beyond ? <ScoreMark strokes={strokes} par={hole.par} size="md" /> : <span className="font-score text-lg">{chips + 1}+</span>}
-                  </button>
-                </div>
-
-                {view.trackPutts && strokes !== null ? (
-                  <div className="mt-2.5 flex items-center gap-2" role="group" aria-label={t("play.card.puttsFor", { name: participant.name })}>
-                    <span className="font-label w-12 text-[10px] text-ink-3">{t("play.card.putts")}</span>
-                    {Array.from({ length: Math.min(strokes, 4) + 1 }, (_, value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        aria-pressed={putts === value}
-                        onClick={() => choosePutts(participant, value)}
-                        className={cn(
-                          "font-score grid h-9 flex-1 place-items-center rounded-lg border text-base transition active:scale-95",
-                          putts === value ? "border-transparent bg-brand text-brand-ink" : "border-line text-ink-3 hover:bg-well",
-                        )}
-                      >
-                        {value}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
+        {/* The players slide in from the side you are moving to. */}
+        <ul key={hole.number} className={cn("flex flex-col gap-3", direction > 0 && "animate-slide-in-right", direction < 0 && "animate-slide-in-left")}>
+          {view.participants.map((participant) => (
+            <ParticipantEntry
+              key={participant.id}
+              participant={participant}
+              hole={hole}
+              holeIndex={holeIndex}
+              mine={participant.id === viewer?.participantId}
+              stableford={view.format === "stableford"}
+              trackPutts={view.trackPutts}
+              pars={pars}
+              onStrokes={(strokes) => chooseStrokes(participant, strokes)}
+              onPutts={(putts) => choosePutts(participant, putts)}
+              onMore={(strokes) => setScore({ participantId: participant.id, hole: hole.number, strokes })}
+            />
+          ))}
         </ul>
 
         {/* -------------------------------------------------------- standings */}
@@ -291,7 +221,7 @@ export function LiveScorecard({ round, connection, refresh, autoApprove }: LiveS
               </button>
             </div>
             <MatchLine round={view} className="mx-2 mb-2" />
-            <Standings round={view} highlightId={viewer?.participantId} />
+            <Standings round={view} highlightId={viewer?.participantId} animate />
           </section>
         ) : null}
       </main>
@@ -311,7 +241,13 @@ export function LiveScorecard({ round, connection, refresh, autoApprove }: LiveS
               {t("play.card.finish")}
             </Button>
           ) : (
-            <Button variant={holeDone ? "accent" : "primary"} size="lg" onClick={() => setActiveHole(holeIndex + 1)} aria-label={t("common.next")} className="px-5">
+            <Button
+              variant={holeDone ? "accent" : "primary"}
+              size="lg"
+              onClick={() => setActiveHole(holeIndex + 1)}
+              aria-label={t("common.next")}
+              className={cn("px-5", holeDone && "animate-glow")}
+            >
               {t("common.next")}
               <ChevronRight className="size-5" />
             </Button>
@@ -432,5 +368,133 @@ export function LiveScorecard({ round, connection, refresh, autoApprove }: LiveS
         onChange={() => void refresh()}
       />
     </div>
+  );
+}
+
+interface ParticipantEntryProps {
+  participant: RoundParticipantDto;
+  hole: HoleInfo;
+  holeIndex: number;
+  mine: boolean;
+  stableford: boolean;
+  trackPutts: boolean;
+  pars: readonly number[];
+  onStrokes: (strokes: number) => void;
+  onPutts: (putts: number) => void;
+  onMore: (strokes: number) => void;
+}
+
+const CELEBRATED = new Set(["ace", "albatross", "eagle", "birdie"]);
+
+/** One player's card for the hole being played: chips for strokes, and putts if tracked. */
+function ParticipantEntry({ participant, hole, holeIndex, mine, stableford, trackPutts, pars, onStrokes, onPutts, onMore }: ParticipantEntryProps) {
+  const t = useT();
+  const strokes = participant.scores[holeIndex] ?? null;
+  const putts = participant.putts[holeIndex] ?? null;
+  const played = holesPlayed(participant.scores);
+  const chips = chipCount(hole.par);
+  const beyond = strokes !== null && strokes > chips;
+  const kind = strokes === null ? null : scoreKind(strokes, hole.par);
+
+  // A birdie or better entered on this hole, by anyone in the flight, gets a burst.
+  const [seen, setSeen] = useState({ strokes, bursts: 0, fresh: false });
+  if (seen.strokes !== strokes) {
+    const celebrate = kind !== null && CELEBRATED.has(kind);
+    setSeen({ strokes, bursts: celebrate ? seen.bursts + 1 : seen.bursts, fresh: true });
+  }
+
+  return (
+    <li className={cn("relative rounded-card border bg-surface p-4 shadow-card transition-colors duration-300", mine ? "border-brand-fg/35" : "border-line")}>
+      <div className="flex items-center gap-3">
+        <Avatar name={participant.name} initials={participant.initials} guest={participant.guest} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold">
+            {participant.name}
+            {mine ? <span className="font-label ml-2 text-[10px] text-brand-fg">{t("common.you")}</span> : null}
+            {participant.guest ? <span className="font-label ml-2 text-[10px] text-ink-3">{t("common.guest")}</span> : null}
+          </p>
+          <p className="text-[13px] text-ink-3">
+            {played === 0
+              ? t("play.card.noScore")
+              : stableford
+                ? `${t("common.points", { count: participant.scores.reduce<number>((sum, value, index) => sum + (value === null ? 0 : stablefordPoints(value, pars[index])), 0) })} · ${t("common.thru", { count: played })}`
+                : `${t("common.strokes", { count: totalStrokes(participant.scores) })} · ${t("common.thru", { count: played })}`}
+          </p>
+        </div>
+        <div className="relative text-right">
+          {seen.bursts > 0 && kind !== null && CELEBRATED.has(kind) ? <Confetti key={seen.bursts} seed={seen.bursts + hole.number} pieces={22} spread={0.7} /> : null}
+          {kind !== null ? (
+            <p
+              key={`${kind}-${strokes}`}
+              className={cn(
+                "font-label text-[10.5px]",
+                CELEBRATED.has(kind) ? "text-under" : "text-ink-2",
+                seen.fresh && (CELEBRATED.has(kind) ? "animate-stamp" : "animate-fade-in"),
+              )}
+            >
+              {t(`common.scoreKind.${kind}`)}
+            </p>
+          ) : null}
+          {played > 0 && !stableford ? <TickNumber value={toPar(participant.scores, pars)} style="toPar" className={cn("font-score text-xl", toPar(participant.scores, pars) < 0 && "text-under", toPar(participant.scores, pars) > 0 && "text-over")} /> : null}
+        </div>
+      </div>
+
+      <div className="mt-3.5 flex items-center gap-1.5" role="group" aria-label={t("play.card.strokesFor", { name: participant.name })}>
+        {Array.from({ length: chips }, (_, index) => index + 1).map((value) => {
+          const selected = strokes === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onStrokes(value)}
+              className={cn(
+                "grid h-12 min-w-0 flex-1 place-items-center rounded-xl border transition duration-200 active:scale-90",
+                selected ? "border-transparent bg-well" : "border-line bg-surface hover:bg-well",
+                !selected && value === hole.par && "border-line-strong",
+              )}
+            >
+              {selected ? (
+                <ScoreMark strokes={value} par={hole.par} size="md" className="animate-pop" />
+              ) : (
+                <span className={cn("font-score text-lg", value === hole.par ? "text-ink" : "text-ink-3")}>{value}</span>
+              )}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          aria-label={t("play.card.more")}
+          disabled={strokes !== null && strokes >= MAX_STROKES}
+          onClick={() => onMore(Math.min(MAX_STROKES, Math.max(chips, strokes ?? chips) + 1))}
+          className={cn(
+            "grid h-12 min-w-0 flex-1 place-items-center rounded-xl border transition duration-200 active:scale-90 disabled:opacity-40",
+            beyond ? "border-transparent bg-well" : "border-line bg-surface text-ink-3 hover:bg-well",
+          )}
+        >
+          {beyond ? <ScoreMark key={strokes} strokes={strokes} par={hole.par} size="md" className="animate-pop" /> : <span className="font-score text-lg">{chips + 1}+</span>}
+        </button>
+      </div>
+
+      {trackPutts && strokes !== null ? (
+        <div className="animate-fade-in mt-2.5 flex items-center gap-2" role="group" aria-label={t("play.card.puttsFor", { name: participant.name })}>
+          <span className="font-label w-12 text-[10px] text-ink-3">{t("play.card.putts")}</span>
+          {Array.from({ length: Math.min(strokes, 4) + 1 }, (_, value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={putts === value}
+              onClick={() => onPutts(value)}
+              className={cn(
+                "font-score grid h-9 flex-1 place-items-center rounded-lg border text-base transition duration-200 active:scale-90",
+                putts === value ? "border-transparent bg-brand text-brand-ink" : "border-line text-ink-3 hover:bg-well",
+              )}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </li>
   );
 }

@@ -50,7 +50,17 @@ suspend and reactivate clubs.
 
 **Public screens**: the clubhouse board (`/board/TOKEN`), a read-only
 television view with live flights, rankings and the calendar; and the live
-view of a shared round (`/live/TOKEN`).
+view of a shared round (`/live/TOKEN`). The live view shows the standings,
+a feed of the latest scores and the full card, and announces birdies, eagles,
+holes-in-one, a new leader and the end of the round as they happen. It offers
+visitors the app for their device: the Android download (or "open in the
+app" when it is installed), a home-screen shortcut on an iPhone, and a QR
+code on a computer to follow along on a phone.
+
+**Motion.** Live changes animate: rows glide to their new place when a
+ranking re-sorts, numbers roll, new scores pop into the card, and pages
+slide in the direction you navigate (React `<ViewTransition>`). Everything
+respects the system's reduced-motion setting.
 
 ## Architecture
 
@@ -68,7 +78,7 @@ db/                 migrations (plain SQL), migrate / bootstrap / demo-seed scri
 public/             service worker, icons, the Android APK and assetlinks.json
 scripts/            build helpers
 src/app/            routes: pages and the REST API under /api
-src/components/     UI primitives (ui/), golf components, feature components
+src/components/     UI primitives (ui/), motion (motion/), golf and feature components
 src/lib/            code shared by server and browser: golf rules, i18n, formatting
 src/server/         server only: database, sessions, realtime, services
 tests/              unit and integration tests

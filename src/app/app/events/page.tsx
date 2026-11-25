@@ -39,7 +39,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
         ))}
       </nav>
       {events.length > 0 ? (
-        <ul className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+        <ul className="stagger-children grid grid-cols-1 gap-2.5 lg:grid-cols-2">
           {events.map((event) => (
             <li key={event.id}>
               <EventRow event={event} t={t} locale={locale} timeZone={session.club.timeZone} />

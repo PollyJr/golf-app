@@ -6,6 +6,7 @@ import { requirePlayer } from "@/server/auth/guards";
 import { getT } from "@/server/i18n";
 import { listCourses } from "@/server/services/courses";
 import { getCourseRecords } from "@/server/services/leaderboards";
+import { NAV_FORWARD } from "@/components/motion/page-transition";
 
 export const metadata: Metadata = { title: "Banen" };
 
@@ -18,13 +19,14 @@ export default async function CoursesPage() {
     <>
       <PageHeader eyebrow={t("app.courses.eyebrow")} title={t("app.courses.title")} description={t("app.courses.lead")} />
       {courses.length > 0 ? (
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ul className="stagger-children grid grid-cols-1 gap-4 md:grid-cols-2">
           {courses.map((course) => {
             const record = records.find((item) => item.courseId === course.id && item.holeCount === course.holeCount);
             return (
               <li key={course.id}>
                 <Link
                   href={`/app/courses/${course.id}`}
+                  transitionTypes={NAV_FORWARD}
                   className="flex h-full flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card transition hover:border-line-strong active:scale-[0.99]"
                 >
                   <div className="bg-ruled relative flex items-end justify-between gap-4 bg-brand px-5 pt-8 pb-4 text-brand-ink">

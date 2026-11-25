@@ -302,6 +302,29 @@ describe("sharing", () => {
     expect(await getSharedRound(token!, "nl")).toBeNull();
     await cancelRound(anna, roundId);
   });
+
+  it("lists the latest scores newest first, a correction as the newest", async () => {
+    const roundId = await createRound(anna, input({ guests: ["Gijs Gast"] }));
+    const card = await getRoundForPlayer(club.id, anna.accountId, roundId, "nl");
+    const [me, guest] = card!.participants.map((participant) => participant.id);
+    expect(card!.activity).toEqual([]);
+
+    await setScore(anna, roundId, { participantId: me, hole: 1, strokes: 3 });
+    await setScore(anna, roundId, { participantId: guest, hole: 1, strokes: 2 });
+    await setScore(anna, roundId, { participantId: me, hole: 2, strokes: 4 });
+    await setScore(anna, roundId, { participantId: me, hole: 1, strokes: 2 });
+
+    const token = (await setSharing(anna, roundId, true))!;
+    const shared = await getSharedRound(token, "nl");
+    expect(shared!.activity.map((item) => `${item.participantId === me ? "me" : "guest"}:${item.hole}:${item.strokes}`)).toEqual([
+      "me:1:2",
+      "me:2:4",
+      "guest:1:2",
+    ]);
+    expect(shared!.activity[0]).toMatchObject({ par: card!.course.holes[0].par });
+    expect(Date.parse(shared!.activity[0].at)).not.toBeNaN();
+    await cancelRound(anna, roundId);
+  });
 });
 
 describe("tenancy", () => {

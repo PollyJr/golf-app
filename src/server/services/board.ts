@@ -22,7 +22,9 @@ export interface LiveFlight {
   holeCount: HoleCount;
   format: RoundFormat;
   startedAt: string | null;
-  players: Array<{ name: string; initials: string; thru: number; strokes: number; toPar: number }>;
+  players: Array<{ id: string; name: string; initials: string; thru: number; strokes: number; toPar: number }>;
+  /** The flight's most recent score, for the "just in" line and celebrations. */
+  latest: { playerId: string; name: string; hole: number; strokes: number; par: number; at: string } | null;
 }
 
 export interface BoardData {
@@ -47,10 +49,18 @@ export async function listLiveFlights(clubId: string, locale: Locale): Promise<L
     hole_count: HoleCount;
     format: RoundFormat;
     started_at: Date | null;
-    players: Array<{ name: string; thru: number; strokes: number; par: number }>;
+    players: Array<{ id: string; name: string; thru: number; strokes: number; par: number }>;
+    latest: { player_id: string; name: string; hole: number; strokes: number; par: number; at: string } | null;
   }>(
     `SELECT r.id, c.name AS course_name, r.hole_count, r.format, r.started_at,
+            (SELECT json_build_object('player_id', rp.id, 'name', rp.display_name, 'hole', hs.hole_number,
+                                      'strokes', hs.strokes, 'par', hs.par_snapshot, 'at', hs.updated_at)
+               FROM hole_scores hs JOIN round_participants rp ON rp.id = hs.round_participant_id
+              WHERE rp.round_id = r.id
+              ORDER BY hs.updated_at DESC, hs.hole_number DESC
+              LIMIT 1) AS latest,
             (SELECT json_agg(json_build_object(
+                      'id', rp.id,
                       'name', rp.display_name,
                       'strokes', rp.total_strokes,
                       'thru', (SELECT count(*) FROM hole_scores hs WHERE hs.round_participant_id = rp.id),
@@ -71,12 +81,23 @@ export async function listLiveFlights(clubId: string, locale: Locale): Promise<L
     format: row.format,
     startedAt: row.started_at?.toISOString() ?? null,
     players: (row.players ?? []).map((player) => ({
+      id: player.id,
       name: player.name,
       initials: initialsOf(player.name),
       thru: Number(player.thru),
       strokes: player.strokes,
       toPar: player.strokes - Number(player.par),
     })),
+    latest: row.latest
+      ? {
+          playerId: row.latest.player_id,
+          name: row.latest.name,
+          hole: row.latest.hole,
+          strokes: row.latest.strokes,
+          par: row.latest.par,
+          at: new Date(row.latest.at).toISOString(),
+        }
+      : null,
   }));
 }
 

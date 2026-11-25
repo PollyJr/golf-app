@@ -68,11 +68,13 @@ interface LinkButtonProps extends CommonProps {
   prefetch?: boolean;
   target?: string;
   download?: boolean | string;
+  /** Which way the page transition goes; see components/motion/page-transition. */
+  transitionTypes?: string[];
   "aria-label"?: string;
 }
 
 /** A link that looks like a button; for navigation, never for actions. */
-export function LinkButton({ variant, size, block, icon, children, className, href, download, target, ...rest }: LinkButtonProps) {
+export function LinkButton({ variant, size, block, icon, children, className, href, download, target, transitionTypes, ...rest }: LinkButtonProps) {
   const classes = buttonClass(variant, size, cn(block && "w-full", className));
   if (download !== undefined || target) {
     return (
@@ -83,7 +85,7 @@ export function LinkButton({ variant, size, block, icon, children, className, hr
     );
   }
   return (
-    <Link href={href} className={classes} {...rest}>
+    <Link href={href} className={classes} transitionTypes={transitionTypes} {...rest}>
       {icon}
       {children}
     </Link>

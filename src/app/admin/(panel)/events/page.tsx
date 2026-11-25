@@ -9,6 +9,7 @@ import { dateParts, formatTime } from "@/lib/format";
 import { requireStaff } from "@/server/auth/guards";
 import { getT } from "@/server/i18n";
 import { listEvents } from "@/server/services/events";
+import { NAV_FORWARD } from "@/components/motion/page-transition";
 
 export const metadata: Metadata = { title: "Events" };
 
@@ -49,13 +50,14 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
           description={scope === "past" ? t("admin.events.emptyPast") : t("admin.events.emptyLead")}
         />
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="stagger-children flex flex-col gap-3">
           {events.map((event) => {
             const date = dateParts(event.startsAt, locale, timeZone);
             return (
               <li key={event.id}>
                 <Link
                   href={`/admin/events/${event.id}`}
+                  transitionTypes={NAV_FORWARD}
                   className="group flex items-center gap-4 rounded-card border border-line bg-surface p-4 shadow-card transition hover:border-line-strong"
                 >
                   <span className="grid w-14 shrink-0 place-items-center rounded-2xl bg-well py-2 text-center">

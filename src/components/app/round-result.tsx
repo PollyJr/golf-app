@@ -2,9 +2,12 @@ import { CircleAlert, Hourglass, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { ScoreMark } from "@/components/golf/score-mark";
 import { ScorecardTable } from "@/components/golf/scorecard-table";
+import { CountUp } from "@/components/motion/animated-number";
+import { Confetti } from "@/components/motion/confetti";
 import { MatchLine, Standings } from "@/components/play/standings";
 import { Badge } from "@/components/ui/badge";
 import { Card, SectionHeading } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/format";
 import { rankFlight } from "@/lib/golf/formats";
 import { distributionOf, formatToPar, toPar, totalStrokes } from "@/lib/golf/scoring";
@@ -20,6 +23,8 @@ interface RoundResultProps {
   actions?: ReactNode;
   /** Rendered above the hero, e.g. a back link. */
   top?: ReactNode;
+  /** The viewer just handed the round in: confetti over the hero. */
+  celebrate?: boolean;
 }
 
 /**
@@ -27,7 +32,7 @@ interface RoundResultProps {
  * facts. Used for a player's own results, approved rounds of club mates and
  * the staff review screen.
  */
-export function RoundResult({ round, t, locale, actions, top }: RoundResultProps) {
+export function RoundResult({ round, t, locale, actions, top, celebrate = false }: RoundResultProps) {
   const holes = round.course.holes;
   const pars = holes.map((hole) => hole.par);
   const ranked = rankFlight(round.participants, pars, round.format);
@@ -77,17 +82,22 @@ export function RoundResult({ round, t, locale, actions, top }: RoundResultProps
         {statusBadge}
       </div>
 
-      <section className="bg-ruled relative overflow-hidden rounded-[1.5rem] bg-brand p-6 text-brand-ink sm:p-8">
+      <section className="bg-ruled animate-rise relative overflow-hidden rounded-[1.5rem] bg-brand p-6 text-brand-ink sm:p-8">
+        {celebrate ? <Confetti pieces={48} spread={2.2} palette={mine && leaders.some((row) => row.participant.id === mine.id) && !solo ? "gold" : "club"} className="top-1/4" /> : null}
         <p className="font-label text-[11px] text-accent">{t("app.results.detailEyebrow")}</p>
-        <h1 className="font-display mt-3 text-[clamp(2rem,7vw,3.2rem)] text-balance">{title}</h1>
+        <h1 className={cn("font-display mt-3 text-[clamp(2rem,7vw,3.2rem)] text-balance", celebrate && "animate-stamp")}>{title}</h1>
         <p className="mt-2 text-[15px] opacity-80">
           {round.course.name} · {t("common.holes", { count: round.holeCount })} · {t(`common.format.${round.format}`)} · {formatDate(when, locale, round.timeZone)}
         </p>
         {round.event ? <p className="mt-1 text-sm opacity-80">{t("app.results.forEvent", { event: round.event.title })}</p> : null}
         <div className="mt-6 flex items-end gap-4">
-          <p className="font-score text-[5.5rem] leading-[0.8]">{focusStrokes}</p>
+          <p className="font-score text-[5.5rem] leading-[0.8]">
+            <CountUp value={focusStrokes} />
+          </p>
           <div className="pb-1">
-            <p className="font-score text-3xl text-accent">{formatToPar(focusToPar)}</p>
+            <p className="font-score text-3xl text-accent">
+              <CountUp value={focusToPar} style="toPar" from={0} />
+            </p>
             <p className="font-label mt-1 text-[10.5px] opacity-70">
               {focus.name} · {t("common.par")} {round.course.par}
             </p>
@@ -143,7 +153,7 @@ export function RoundResult({ round, t, locale, actions, top }: RoundResultProps
 
       <section>
         <SectionHeading title={t("app.results.facts")} eyebrow={solo ? undefined : focus.name} />
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <dl className="stagger-children grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Fact label={t("app.results.factBirdies")} value={underPar} tone={underPar > 0 ? "under" : undefined} />
           <Fact label={t("app.results.factPars")} value={distribution.par} />
           <Fact label={t("app.results.factBogeys")} value={overPar} tone={overPar > 0 ? "over" : undefined} />

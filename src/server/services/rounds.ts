@@ -25,6 +25,7 @@ import type {
   ActiveRoundSummary,
   AdminRoundRow,
   InvitationStatus,
+  RoundActivity,
   RoundHistoryItem,
   RoundParticipantDto,
   RoundSnapshot,
@@ -33,6 +34,8 @@ import type {
 
 /** How long a finished round stays visible through its share link. */
 const SHARE_DAYS_AFTER_FINISH = 7;
+/** Scores listed in a round's "latest" feed. */
+const ACTIVITY_SHOWN = 12;
 
 // ------------------------------------------------------------- snapshot --
 
@@ -94,8 +97,16 @@ async function buildSnapshot(base: RoundBaseRow, locale: Locale, on: Db = db): P
       [base.id],
       on,
     ),
-    many<{ round_participant_id: string; hole_number: number; strokes: number; putts: number | null; par_snapshot: number; distance_snapshot: number }>(
-      `SELECT hs.round_participant_id, hs.hole_number, hs.strokes, hs.putts, hs.par_snapshot, hs.distance_snapshot
+    many<{
+      round_participant_id: string;
+      hole_number: number;
+      strokes: number;
+      putts: number | null;
+      par_snapshot: number;
+      distance_snapshot: number;
+      updated_at: Date;
+    }>(
+      `SELECT hs.round_participant_id, hs.hole_number, hs.strokes, hs.putts, hs.par_snapshot, hs.distance_snapshot, hs.updated_at
          FROM hole_scores hs
          JOIN round_participants rp ON rp.id = hs.round_participant_id
         WHERE rp.round_id = $1`,
@@ -139,6 +150,18 @@ async function buildSnapshot(base: RoundBaseRow, locale: Locale, on: Db = db): P
     entry.putts[score.hole_number - 1] = score.putts;
   }
 
+  const activity: RoundActivity[] = scores
+    .filter((score) => score.hole_number >= 1 && score.hole_number <= base.hole_count)
+    .sort((left, right) => right.updated_at.getTime() - left.updated_at.getTime() || right.hole_number - left.hole_number)
+    .slice(0, ACTIVITY_SHOWN)
+    .map((score) => ({
+      participantId: score.round_participant_id,
+      hole: score.hole_number,
+      strokes: score.strokes,
+      par: score.par_snapshot,
+      at: score.updated_at.toISOString(),
+    }));
+
   const participantDtos: RoundParticipantDto[] = participants.map((participant) => ({
     id: participant.id,
     playerId: participant.player_id,
@@ -177,6 +200,7 @@ async function buildSnapshot(base: RoundBaseRow, locale: Locale, on: Db = db): P
     },
     event: base.event_id ? { id: base.event_id, title: pickText(base.event_title, locale) } : null,
     participants: participantDtos,
+    activity,
   };
 }
 

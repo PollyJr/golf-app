@@ -146,6 +146,15 @@ export interface RoundCourse {
   holes: HoleInfo[];
 }
 
+/** One score as it was entered, for the "latest" feed of a live round. */
+export interface RoundActivity {
+  participantId: string;
+  hole: number;
+  strokes: number;
+  par: number;
+  at: string;
+}
+
 export interface RoundViewer {
   playerId: string;
   participantId: string | null;
@@ -178,6 +187,8 @@ export interface RoundSnapshot {
   shareToken?: string | null;
   /** Behind the "scan to join" QR code; participants only, while the round is open. */
   joinToken?: string | null;
+  /** The most recently entered scores, newest first. */
+  activity: RoundActivity[];
 }
 
 export interface ActiveRoundSummary {

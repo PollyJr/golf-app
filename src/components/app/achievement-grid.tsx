@@ -41,6 +41,13 @@ const ICONS: Record<AchievementKey, LucideIcon> = {
   regular: CalendarCheck,
 };
 
+const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Earned in the last week: it still gleams. */
+function isRecent(achievedAt: string): boolean {
+  return Date.now() - new Date(achievedAt).getTime() < RECENT_MS;
+}
+
 const TIER_STYLE: Record<AchievementTier, string> = {
   bronze: "bg-over-soft text-over",
   silver: "bg-info-soft text-info",
@@ -63,7 +70,7 @@ export function AchievementGrid({ earned, t, locale, timeZone, earnedOnly }: Ach
   const ordered = [...keys].sort((left, right) => Number(byKey.has(right)) - Number(byKey.has(left)));
 
   return (
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <ul className="stagger-children grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {ordered.map((key) => {
         const achievement = byKey.get(key);
         const Icon = ICONS[key];
@@ -71,11 +78,17 @@ export function AchievementGrid({ earned, t, locale, timeZone, earnedOnly }: Ach
           <li
             key={key}
             className={cn(
-              "flex flex-col items-center rounded-card border p-4 text-center",
-              achievement ? "border-line bg-surface shadow-card" : "border-dashed border-line-strong opacity-60",
+              "flex flex-col items-center rounded-card border p-4 text-center transition duration-300",
+              achievement ? "border-line bg-surface shadow-card hover:-translate-y-0.5 hover:shadow-pop" : "border-dashed border-line-strong opacity-60",
+              achievement && isRecent(achievement.achievedAt) && "shine border-gold/40",
             )}
           >
-            <span className={cn("grid size-12 place-items-center rounded-full", achievement ? TIER_STYLE[ACHIEVEMENT_TIERS[key]] : "bg-well text-ink-3")}>
+            <span
+              className={cn(
+                "grid size-12 place-items-center rounded-full transition-transform duration-500 ease-(--ease-spring)",
+                achievement ? `${TIER_STYLE[ACHIEVEMENT_TIERS[key]]} hover:scale-110 hover:-rotate-6` : "bg-well text-ink-3",
+              )}
+            >
               {achievement ? <Icon className="size-6" /> : <Lock className="size-5" />}
             </span>
             <p className="mt-3 text-sm font-bold text-balance">{t(`app.achievements.${key}.title`)}</p>

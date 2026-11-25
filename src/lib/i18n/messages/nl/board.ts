@@ -1,4 +1,5 @@
 export const board = {
+  latest: "Laatste",
   title: "Clubhuis",
   onCourse: "Nu op de baan",
   nobodyOnCourse: "Er is op dit moment niemand op de baan.",

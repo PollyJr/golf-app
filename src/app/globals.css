@@ -56,6 +56,20 @@
 
   --shadow-card: 0 1px 0 rgb(20 33 26 / 0.04), 0 8px 24px -12px rgb(20 33 26 / 0.12);
   --shadow-pop: 0 2px 4px rgb(20 33 26 / 0.06), 0 24px 48px -16px rgb(20 33 26 / 0.28);
+
+  /* Motion. Every animation in the app draws from these: things arrive with
+     `--ease-out`, playful moments (a birdie, a badge) overshoot with
+     `--ease-spring`, and nothing important takes longer than `--dur-slow`. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
+  --dur-slower: 720ms;
+  /* The highlight behind something that just changed. */
+  --flash: color-mix(in oklab, var(--accent) 42%, transparent);
 }
 
 /* Dark theme: explicit choice, or the system setting when nothing was chosen. */
@@ -157,9 +171,40 @@
   --radius-card: 1.125rem;
   --radius-control: 0.8rem;
 
-  --animate-pop: pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
-  --animate-rise: rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  /* Arrivals */
+  --animate-pop: pop 0.32s var(--ease-spring);
+  --animate-rise: rise var(--dur-slow) var(--ease-out) backwards;
+  --animate-fade-in: fade-in var(--dur-base) var(--ease-out) backwards;
+  --animate-scale-in: scale-in var(--dur-slow) var(--ease-spring) backwards;
+  --animate-sheet-up: sheet-up var(--dur-slow) var(--ease-out) backwards;
+  --animate-slide-down: slide-down var(--dur-slow) var(--ease-out) backwards;
+  --animate-slide-in-right: slide-in-right var(--dur-slow) var(--ease-out) backwards;
+  --animate-slide-in-left: slide-in-left var(--dur-slow) var(--ease-out) backwards;
+  --animate-toast-in: toast-in var(--dur-slow) var(--ease-spring) backwards;
+  --animate-toast-out: toast-out var(--dur-base) var(--ease-in) both;
+  /* Something changed */
+  --animate-score-in: score-in 0.6s var(--ease-spring) backwards;
+  --animate-tick-up: tick-up var(--dur-slow) var(--ease-out) backwards;
+  --animate-tick-down: tick-down var(--dur-slow) var(--ease-out) backwards;
+  --animate-bump: bump 0.5s var(--ease-spring);
+  --animate-shake: shake 0.45s var(--ease-out);
+  --animate-flash: flash 1.6s var(--ease-out);
+  --animate-ring: ring 0.9s var(--ease-out) both;
+  /* Charts and progress */
+  --animate-grow-x: grow-x var(--dur-slower) var(--ease-out) backwards;
+  --animate-grow-y: grow-y var(--dur-slower) var(--ease-out) backwards;
+  --animate-draw: draw 1.2s var(--ease-out) backwards;
+  /* Ambient, for things that are happening right now */
   --animate-live: live 1.8s ease-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-float: float 3.6s var(--ease-in-out) infinite;
+  --animate-glow: glow 2.8s var(--ease-in-out) infinite;
+  --animate-spin-slow: spin 14s linear infinite;
+  --animate-scan: scan 2.4s var(--ease-in-out) infinite alternate;
+  /* Celebrations */
+  --animate-confetti: confetti 1.6s var(--ease-out) backwards;
+  --animate-burst: burst 0.9s var(--ease-out) both;
+  --animate-stamp: stamp 0.7s var(--ease-spring) backwards;
 
   @keyframes pop {
     0% {
@@ -179,12 +224,215 @@
       transform: none;
     }
   }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+  }
+  @keyframes sheet-up {
+    from {
+      opacity: 0.4;
+      transform: translateY(min(40%, 18rem));
+    }
+  }
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-14px) scale(0.98);
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+  }
+  @keyframes slide-in-left {
+    from {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(-120%) scale(0.92);
+    }
+  }
+  @keyframes toast-out {
+    to {
+      opacity: 0;
+      transform: translateY(-40%) scale(0.96);
+    }
+  }
+  @keyframes score-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.3) rotate(-12deg);
+    }
+    60% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes tick-up {
+    from {
+      opacity: 0;
+      transform: translateY(0.55em);
+    }
+  }
+  @keyframes tick-down {
+    from {
+      opacity: 0;
+      transform: translateY(-0.55em);
+    }
+  }
+  @keyframes shake {
+    0%,
+    100% {
+      transform: none;
+    }
+    20% {
+      transform: translateX(-7px);
+    }
+    40% {
+      transform: translateX(6px);
+    }
+    60% {
+      transform: translateX(-4px);
+    }
+    80% {
+      transform: translateX(2px);
+    }
+  }
+  @keyframes bump {
+    0% {
+      transform: scale(1);
+    }
+    35% {
+      transform: scale(1.22);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  @keyframes flash {
+    from {
+      box-shadow: inset 0 0 0 100vmax var(--flash);
+    }
+    to {
+      box-shadow: inset 0 0 0 100vmax transparent;
+    }
+  }
+  @keyframes ring {
+    from {
+      box-shadow: 0 0 0 0 var(--ring-color, var(--accent));
+      opacity: 1;
+    }
+    to {
+      box-shadow: 0 0 0 1.1rem transparent;
+    }
+  }
+  @keyframes grow-x {
+    from {
+      transform: scaleX(0);
+    }
+  }
+  @keyframes grow-y {
+    from {
+      transform: scaleY(0);
+    }
+  }
+  @keyframes draw {
+    from {
+      stroke-dashoffset: var(--path-length, 1);
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
   @keyframes live {
     0% {
       box-shadow: 0 0 0 0 color-mix(in oklab, currentColor 55%, transparent);
     }
     100% {
       box-shadow: 0 0 0 9px transparent;
+    }
+  }
+  @keyframes scan {
+    from {
+      top: 6%;
+    }
+    to {
+      top: 94%;
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 150% 0;
+    }
+    to {
+      background-position: -50% 0;
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+  @keyframes glow {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--glow-color, var(--accent)) 0%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 6px color-mix(in oklab, var(--glow-color, var(--accent)) 35%, transparent);
+    }
+  }
+  @keyframes confetti {
+    0% {
+      opacity: 1;
+      transform: translate(0, 0) rotate(0deg) scale(0.6);
+    }
+    70% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--spin, 540deg)) scale(1);
+    }
+  }
+  @keyframes burst {
+    0% {
+      opacity: 0.9;
+      transform: scale(0.2);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.6);
+    }
+  }
+  @keyframes stamp {
+    0% {
+      opacity: 0;
+      transform: scale(1.8) rotate(-8deg);
+    }
+    100% {
+      opacity: 1;
+      transform: none;
     }
   }
 }
@@ -246,6 +494,81 @@
   }
 }
 
+/* --------------------------------------------------------------- motion -- */
+
+/* Delays an animation by its position in a list: style={stagger(index)}. */
+@utility stagger {
+  animation-delay: calc(min(var(--i, 0), 12) * var(--stagger-step, 45ms));
+}
+
+/* The children of a list rise into place one after another. */
+@utility stagger-children {
+  & > * {
+    animation: rise var(--dur-slow) var(--ease-out) backwards;
+  }
+  & > :nth-child(2) {
+    animation-delay: 45ms;
+  }
+  & > :nth-child(3) {
+    animation-delay: 90ms;
+  }
+  & > :nth-child(4) {
+    animation-delay: 135ms;
+  }
+  & > :nth-child(5) {
+    animation-delay: 180ms;
+  }
+  & > :nth-child(6) {
+    animation-delay: 225ms;
+  }
+  & > :nth-child(7) {
+    animation-delay: 270ms;
+  }
+  & > :nth-child(8) {
+    animation-delay: 315ms;
+  }
+  & > :nth-child(n + 9) {
+    animation-delay: 360ms;
+  }
+}
+
+/* A placeholder that shimmers while its content loads. */
+@utility skeleton {
+  background-color: color-mix(in oklab, var(--line) 55%, transparent);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in oklab, var(--surface) 55%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* A slow gleam across something new, e.g. an achievement earned this week. */
+@utility shine {
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(115deg, transparent 35%, color-mix(in oklab, var(--gold) 28%, transparent) 50%, transparent 65%);
+    background-size: 250% 100%;
+    animation: shine 3.6s var(--ease-in-out) infinite;
+  }
+}
+
+/* Grows from the start of its line, e.g. a progress bar or a chart bar. */
+@utility origin-start {
+  transform-origin: left center;
+  &:dir(rtl) {
+    transform-origin: right center;
+  }
+}
+
 /* ------------------------------------------------------------------ base -- */
 
 @layer base {
@@ -303,9 +626,61 @@
   dialog {
     color: inherit;
   }
+
+  /* Dialogs fade and rise in, and leave the same way: the closed state is
+     the starting point, and `allow-discrete` keeps the element in the top
+     layer until its exit transition has finished. */
+  dialog {
+    opacity: 0;
+    transform: translateY(2.5rem);
+    transition:
+      opacity var(--dur-base) var(--ease-out),
+      transform var(--dur-slow) var(--ease-out),
+      overlay var(--dur-base) allow-discrete,
+      display var(--dur-base) allow-discrete;
+  }
+  dialog[open] {
+    opacity: 1;
+    transform: none;
+  }
+  @starting-style {
+    dialog[open] {
+      opacity: 0;
+      transform: translateY(2.5rem);
+    }
+  }
+  @media (min-width: 40rem) {
+    dialog,
+    dialog[open] {
+      transform-origin: 50% 60%;
+    }
+    dialog:not([open]) {
+      transform: scale(0.95);
+    }
+    @starting-style {
+      dialog[open] {
+        transform: scale(0.95);
+      }
+    }
+  }
   dialog::backdrop {
+    background: rgb(9 18 13 / 0);
+    backdrop-filter: blur(0);
+    transition:
+      background-color var(--dur-base) var(--ease-out),
+      backdrop-filter var(--dur-base) var(--ease-out),
+      overlay var(--dur-base) allow-discrete,
+      display var(--dur-base) allow-discrete;
+  }
+  dialog[open]::backdrop {
     background: rgb(9 18 13 / 0.55);
     backdrop-filter: blur(3px);
+  }
+  @starting-style {
+    dialog[open]::backdrop {
+      background: rgb(9 18 13 / 0);
+      backdrop-filter: blur(0);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -313,16 +688,150 @@
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+      transition-delay: 0s !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+/* -------------------------------------------------------- scroll reveal -- */
+
+/* Set by useReveal (src/components/motion/reveal.tsx) on elements that are
+   still below the fold: they wait out of sight, then rise once into view. */
+[data-reveal="pending"] {
+  opacity: 0;
+  transform: translateY(18px);
+}
+[data-reveal="shown"] {
+  transition:
+    opacity 0.5s var(--ease-out),
+    transform 0.6s var(--ease-out);
+}
+
+/* ------------------------------------------------------ page transitions -- */
+
+/*
+ * Navigations are React transitions, so <ViewTransition> boundaries animate
+ * between pages (src/components/motion/page-transition.tsx). Links say which
+ * way the user is going: deeper into the app slides in from the right, back
+ * slides in from the left, switching tabs crossfades.
+ */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(*) {
+  animation-duration: var(--dur-slow);
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-old(.nav-forward) {
+  animation:
+    var(--dur-fast) var(--ease-in) both vt-fade-out,
+    var(--dur-slow) var(--ease-in-out) both vt-to-left;
+}
+::view-transition-new(.nav-forward) {
+  animation:
+    var(--dur-base) var(--ease-out) 90ms both vt-fade-in,
+    var(--dur-slow) var(--ease-out) both vt-from-right;
+}
+::view-transition-old(.nav-back) {
+  animation:
+    var(--dur-fast) var(--ease-in) both vt-fade-out,
+    var(--dur-slow) var(--ease-in-out) both vt-to-right;
+}
+::view-transition-new(.nav-back) {
+  animation:
+    var(--dur-base) var(--ease-out) 90ms both vt-fade-in,
+    var(--dur-slow) var(--ease-out) both vt-from-left;
+}
+::view-transition-old(.nav-tab) {
+  animation: var(--dur-fast) var(--ease-in) both vt-fade-out;
+}
+::view-transition-new(.nav-tab) {
+  animation:
+    var(--dur-base) var(--ease-out) 60ms both vt-fade-in,
+    var(--dur-slow) var(--ease-out) both vt-rise;
+}
+
+/* The app's header and tab bar stay put while the page under them moves. */
+::view-transition-group(shell-header),
+::view-transition-group(shell-tabbar) {
+  animation: none;
+  z-index: 50;
+}
+::view-transition-old(shell-header),
+::view-transition-old(shell-tabbar) {
+  display: none;
+}
+::view-transition-new(shell-header),
+::view-transition-new(shell-tabbar) {
+  animation: none;
+}
+
+@keyframes shine {
+  from {
+    background-position: 130% 0;
+  }
+  55%,
+  to {
+    background-position: -30% 0;
+  }
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-from-right {
+  from {
+    translate: 56px 0;
+  }
+}
+@keyframes vt-to-left {
+  to {
+    translate: -56px 0;
+  }
+}
+@keyframes vt-from-left {
+  from {
+    translate: -56px 0;
+  }
+}
+@keyframes vt-to-right {
+  to {
+    translate: 56px 0;
+  }
+}
+@keyframes vt-rise {
+  from {
+    translate: 0 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
   }
 }
 
 @media print {
   .no-print {
     display: none !important;
+  }
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
   }
   body {
     background: #fff;

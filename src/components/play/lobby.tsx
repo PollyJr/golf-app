@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { useFlip } from "@/hooks/use-motion";
 import { api } from "@/lib/api-client";
 import { MAX_FLIGHT_SIZE } from "@/lib/golf/scoring";
 import type { RoundSnapshot } from "@/lib/types";
@@ -34,6 +35,8 @@ export function Lobby({ round, refresh }: LobbyProps) {
 
   const viewer = round.viewer;
   const isStarter = viewer?.isStarter ?? false;
+  // Players who join, by QR code or by accepting, pop into the list; a row lights up when it changes.
+  const flip = useFlip({ enter: "pop" });
   const invited = viewer?.invitation === "pending";
 
   async function run(key: string, action: () => Promise<unknown>, after?: () => void) {
@@ -75,7 +78,7 @@ export function Lobby({ round, refresh }: LobbyProps) {
         ) : null}
       </div>
 
-      <header>
+      <header className="animate-rise">
         <Eyebrow>{t("play.lobby.eyebrow")}</Eyebrow>
         <h1 className="font-display mt-2 text-[clamp(1.9rem,7vw,2.6rem)] text-balance">
           {invited ? t("play.lobby.invitedBy", { name: round.starterName.split(/\s+/)[0] }) : t("play.lobby.title")}
@@ -90,7 +93,7 @@ export function Lobby({ round, refresh }: LobbyProps) {
           const pending = participant.invitation === "pending";
           const isRoundStarter = participant.playerId === round.starterId;
           return (
-            <div key={participant.id} className="flex items-center gap-3 px-4 py-3.5">
+            <div key={participant.id} ref={flip(participant.id, participant.invitation)} className="flex items-center gap-3 px-4 py-3.5">
               <Avatar name={participant.name} initials={participant.initials} guest={participant.guest} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{participant.name}</p>
@@ -99,11 +102,11 @@ export function Lobby({ round, refresh }: LobbyProps) {
                 </p>
               </div>
               {pending ? (
-                <Badge tone="gold" icon={<Clock className="size-3" />}>
+                <Badge key="pending" tone="gold" icon={<Clock className="size-3 animate-pulse" />}>
                   {t("play.lobby.pending")}
                 </Badge>
               ) : (
-                <Badge tone="under" icon={<Check className="size-3" />}>
+                <Badge key="accepted" tone="under" icon={<Check className="size-3" />} className="animate-scale-in">
                   {t("play.lobby.accepted")}
                 </Badge>
               )}

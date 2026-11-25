@@ -155,7 +155,9 @@ export function RoundsChart({ data }: RoundsChartProps) {
                     d={columnPath(geometry.x(index), geometry.y(point.rounds), geometry.bar, height)}
                     fill="var(--brand-fg)"
                     opacity={dimmed ? 0.45 : 1}
-                    style={{ transition: "opacity 120ms" }}
+                    className="animate-grow-y"
+                    // The columns grow out of the baseline, left to right.
+                    style={{ transition: "opacity 120ms", transformBox: "fill-box", transformOrigin: "bottom", animationDelay: `${index * 18}ms` }}
                   />
                 ) : null}
                 {/* The whole slot is the hit target, not just the painted column. */}

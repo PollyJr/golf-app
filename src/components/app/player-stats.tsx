@@ -2,8 +2,9 @@ import { AchievementGrid } from "./achievement-grid";
 import { HoleSection } from "./hole-section";
 import { Distribution } from "@/components/charts/distribution";
 import { TrendChart } from "@/components/charts/trend-chart";
+import { CountUp } from "@/components/motion/animated-number";
 import { Card, SectionHeading, Stat } from "@/components/ui/card";
-import { formatNumber, formatPercent, formatShortDate, formatSigned } from "@/lib/format";
+import { formatShortDate, formatSigned } from "@/lib/format";
 import { ACHIEVEMENT_KEYS } from "@/lib/golf/achievements";
 import { formatClubIndex } from "@/lib/golf/club-index";
 import { formatToPar } from "@/lib/golf/scoring";
@@ -26,27 +27,31 @@ export function PlayerStats({ overview, t, locale, timeZone, compact }: PlayerSt
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <Stat label={t("app.stats.index")} value={formatClubIndex(player.clubIndex, locale)} hint={t("app.stats.indexHint")} />
-        <Stat label={t("app.stats.rounds")} value={stats.rounds} hint={t("app.stats.holesPlayed", { count: stats.holes })} />
+      <section className="stagger-children grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <Stat
+          label={t("app.stats.index")}
+          value={player.clubIndex === null ? formatClubIndex(null, locale) : <CountUp value={player.clubIndex} style="index" />}
+          hint={t("app.stats.indexHint")}
+        />
+        <Stat label={t("app.stats.rounds")} value={<CountUp value={stats.rounds} />} hint={t("app.stats.holesPlayed", { count: stats.holes })} />
         <Stat
           label={t("app.stats.average")}
-          value={stats.averagePer9 === null ? "–" : formatSigned(stats.averagePer9, locale)}
+          value={stats.averagePer9 === null ? "–" : <CountUp value={stats.averagePer9} style="signed1" />}
           hint={t("app.stats.averageHint")}
         />
         <Stat
           label={t("app.stats.best")}
-          value={stats.best ? stats.best.strokes : "–"}
+          value={stats.best ? <CountUp value={stats.best.strokes} /> : "–"}
           hint={stats.best ? `${formatToPar(stats.best.toPar)} · ${stats.best.courseName}` : undefined}
           tone={stats.best && stats.best.toPar < 0 ? "under" : "default"}
         />
         <Stat
           label={t("app.stats.parRate")}
-          value={stats.parOrBetterRate === null ? "–" : formatPercent(stats.parOrBetterRate, locale)}
+          value={stats.parOrBetterRate === null ? "–" : <CountUp value={stats.parOrBetterRate} style="percent" />}
           hint={t("app.stats.parRateHint")}
         />
         {stats.averagePutts !== null ? (
-          <Stat label={t("app.stats.putts")} value={formatNumber(stats.averagePutts, locale, 1)} hint={t("app.stats.puttsHint", { count: stats.puttHoles })} />
+          <Stat label={t("app.stats.putts")} value={<CountUp value={stats.averagePutts} style="decimal1" />} hint={t("app.stats.puttsHint", { count: stats.puttHoles })} />
         ) : null}
       </section>
 

@@ -12,6 +12,7 @@ import { formatDateTime, formatLongDate, formatTime } from "@/lib/format";
 import { requirePlayer } from "@/server/auth/guards";
 import { getT } from "@/server/i18n";
 import { getEvent, getEventLeaderboard, listEventParticipants, listPlayableEvents } from "@/server/services/events";
+import { NAV_BACK, NAV_FORWARD } from "@/components/motion/page-transition";
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requirePlayer();
@@ -34,7 +35,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="flex flex-col gap-7">
-      <Link href="/app/events" className="text-sm font-semibold text-ink-2 hover:text-ink">
+      <Link href="/app/events" transitionTypes={NAV_BACK} className="text-sm font-semibold text-ink-2 hover:text-ink">
         ← {t("app.events.backToEvents")}
       </Link>
 
@@ -58,7 +59,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
                   <ol>
                     {leaderboard.map((row) => (
                       <li key={row.playerId} className="border-b border-line last:border-b-0">
-                        <Link href={`/app/players/${row.playerId}`} className="flex items-center gap-3 px-4 py-3 hover:bg-well">
+                        <Link href={`/app/players/${row.playerId}`} transitionTypes={NAV_FORWARD} className="flex items-center gap-3 px-4 py-3 hover:bg-well">
                           <span className={`font-score w-7 text-center text-xl ${row.rank === 1 ? "text-gold" : "text-ink-3"}`}>{row.rank}</span>
                           <Avatar name={row.name} initials={row.initials} size="sm" />
                           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{row.name}</span>
@@ -94,6 +95,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
                   <li key={participant.playerId}>
                     <Link
                       href={`/app/players/${participant.playerId}`}
+                      transitionTypes={NAV_FORWARD}
                       className="inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1 pr-3.5 pl-1 text-sm font-medium hover:bg-well"
                     >
                       <Avatar name={participant.name} initials={participant.initials} size="sm" />

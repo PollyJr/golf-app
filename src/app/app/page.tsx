@@ -1,6 +1,7 @@
 import { Flag, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { ActiveRounds } from "@/components/app/active-rounds";
+import { CountUp } from "@/components/motion/animated-number";
 import { QrQuickActions } from "@/components/qr/qr-dialogs";
 import { EventRow, NewsRow, RoundRow } from "@/components/app/rows";
 import { LinkButton } from "@/components/ui/button";
@@ -44,7 +45,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <header className="mb-6">
+      <header className="animate-rise mb-6">
         <Eyebrow>{club.name}</Eyebrow>
         <h1 className="font-display mt-2 text-[clamp(1.9rem,6.5vw,2.9rem)] text-balance">
           {t(`app.home.${dayPart(club.timeZone)}`, { name: firstName })}
@@ -57,7 +58,7 @@ export default async function HomePage() {
 
       <ActiveRounds />
 
-      <section className="bg-ruled relative mb-8 grid gap-6 overflow-hidden rounded-[1.5rem] bg-brand p-6 text-brand-ink sm:grid-cols-[1fr_auto] sm:items-end sm:p-8">
+      <section className="bg-ruled animate-rise relative mb-8 grid gap-6 overflow-hidden rounded-[1.5rem] bg-brand p-6 text-brand-ink [animation-delay:80ms] sm:grid-cols-[1fr_auto] sm:items-end sm:p-8">
         <div>
           <h2 className="font-display text-[clamp(1.6rem,5vw,2.3rem)] text-balance">{t("app.home.ctaTitle")}</h2>
           <p className="mt-2 max-w-sm text-[15px] opacity-80">{t("app.home.ctaLead")}</p>
@@ -68,17 +69,17 @@ export default async function HomePage() {
         <div className="flex items-end gap-4 border-t border-current/15 pt-5 sm:flex-col sm:items-end sm:border-t-0 sm:border-l sm:pt-0 sm:pl-8 sm:text-right">
           <div>
             <p className="font-label text-[10.5px] text-accent">{t("common.clubIndex")}</p>
-            <p className="font-score mt-1 text-[4.2rem] leading-none">{formatClubIndex(index, locale)}</p>
+            <p className="font-score mt-1 text-[4.2rem] leading-none">{index === null ? formatClubIndex(index, locale) : <CountUp value={index} style="index" />}</p>
           </div>
           <p className="max-w-[13rem] text-xs opacity-70">{index === null ? t("app.home.indexEmpty") : t("app.home.indexHint")}</p>
         </div>
       </section>
 
-      <section className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label={t("app.home.statRounds")} value={stats?.rounds ?? 0} />
+      <section className="stagger-children mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label={t("app.home.statRounds")} value={<CountUp value={stats?.rounds ?? 0} />} />
         <Stat
           label={t("app.home.statBest")}
-          value={stats?.best ? stats.best.strokes : "–"}
+          value={stats?.best ? <CountUp value={stats.best.strokes} /> : "–"}
           hint={stats?.best ? `${formatToPar(stats.best.toPar)} · ${stats.best.courseName}` : undefined}
           tone={stats?.best && stats.best.toPar < 0 ? "under" : "default"}
         />
@@ -117,7 +118,7 @@ export default async function HomePage() {
             }
           />
           {recent.length > 0 ? (
-            <ul className="flex flex-col gap-2.5">
+            <ul className="stagger-children flex flex-col gap-2.5">
               {recent.map((round) => (
                 <li key={round.id}>
                   <RoundRow round={round} {...format} />
@@ -140,7 +141,7 @@ export default async function HomePage() {
               }
             />
             {events.length > 0 ? (
-              <ul className="flex flex-col gap-2.5">
+              <ul className="stagger-children flex flex-col gap-2.5">
                 {events.map((event) => (
                   <li key={event.id}>
                     <EventRow event={event} {...format} />
@@ -162,7 +163,7 @@ export default async function HomePage() {
               }
             />
             {news.length > 0 ? (
-              <ul className="flex flex-col gap-2.5">
+              <ul className="stagger-children flex flex-col gap-2.5">
                 {news.map((item) => (
                   <li key={item.id}>
                     <NewsRow item={item} {...format} />

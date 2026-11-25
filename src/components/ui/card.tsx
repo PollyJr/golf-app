@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import { CountUp } from "@/components/motion/animated-number";
 import { cn } from "@/lib/cn";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
@@ -58,7 +59,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, eyebrow, description, actions, className }: PageHeaderProps) {
   return (
-    <header className={cn("mb-6 flex flex-wrap items-end justify-between gap-4", className)}>
+    <header className={cn("animate-rise mb-6 flex flex-wrap items-end justify-between gap-4", className)}>
       <div className="min-w-0 max-w-2xl">
         {eyebrow ? <Eyebrow className="mb-2">{eyebrow}</Eyebrow> : null}
         <h1 className="font-display text-[clamp(1.85rem,6vw,2.75rem)] text-balance">{title}</h1>
@@ -79,8 +80,8 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
-    <div className={cn("flex flex-col items-center rounded-card border border-dashed border-line-strong px-6 py-10 text-center", className)}>
-      {icon ? <div className="mb-3 grid size-12 place-items-center rounded-full bg-well text-ink-2">{icon}</div> : null}
+    <div className={cn("animate-fade-in flex flex-col items-center rounded-card border border-dashed border-line-strong px-6 py-10 text-center", className)}>
+      {icon ? <div className="animate-scale-in mb-3 grid size-12 place-items-center rounded-full bg-well text-ink-2 [animation-delay:120ms]">{icon}</div> : null}
       <p className="font-display text-lg">{title}</p>
       {description ? <p className="mt-1 max-w-sm text-sm text-ink-2">{description}</p> : null}
       {action ? <div className="mt-5">{action}</div> : null}
@@ -109,7 +110,8 @@ export function Stat({ label, value, hint, tone = "default", className }: StatPr
           tone === "gold" && "text-gold",
         )}
       >
-        {value}
+        {/* Plain numbers count up when the page is opened from within the app. */}
+        {typeof value === "number" ? <CountUp value={value} /> : value}
       </p>
       {hint ? <p className="mt-1.5 text-xs text-ink-3">{hint}</p> : null}
     </div>
@@ -121,5 +123,5 @@ export function Divider({ className }: { className?: string }) {
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-control bg-line/60", className)} aria-hidden="true" />;
+  return <div className={cn("skeleton rounded-control", className)} aria-hidden="true" />;
 }

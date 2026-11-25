@@ -7,6 +7,7 @@ import { EmptyState, PageHeader } from "@/components/ui/card";
 import { requireStaff } from "@/server/auth/guards";
 import { getT } from "@/server/i18n";
 import { listCourses } from "@/server/services/courses";
+import { NAV_FORWARD } from "@/components/motion/page-transition";
 
 export const metadata: Metadata = { title: "Banen" };
 
@@ -40,11 +41,12 @@ export default async function AdminCoursesPage() {
           }
         />
       ) : (
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ul className="stagger-children grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {courses.map((course) => (
             <li key={course.id}>
               <Link
                 href={`/admin/courses/${course.id}`}
+                transitionTypes={NAV_FORWARD}
                 className={`group flex h-full flex-col rounded-card border border-line bg-surface p-5 shadow-card transition hover:border-line-strong ${course.active ? "" : "opacity-70"}`}
               >
                 <div className="flex items-start justify-between gap-3">

@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/format";
 import { requirePlayer } from "@/server/auth/guards";
 import { getT } from "@/server/i18n";
 import { getNewsItem } from "@/server/services/news";
+import { NAV_BACK } from "@/components/motion/page-transition";
 
 export default async function NewsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requirePlayer();
@@ -16,7 +17,7 @@ export default async function NewsPage({ params }: { params: Promise<{ id: strin
 
   return (
     <article className="mx-auto max-w-2xl">
-      <Link href="/app/club" className="text-sm font-semibold text-ink-2 hover:text-ink">
+      <Link href="/app/club" transitionTypes={NAV_BACK} className="text-sm font-semibold text-ink-2 hover:text-ink">
         ← {t("app.club.backToClub")}
       </Link>
       <div className="mt-6 flex flex-wrap items-center gap-2">
